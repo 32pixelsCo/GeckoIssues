@@ -1,0 +1,73 @@
+name: GeckoIssues
+options:
+  bundleIdPrefix: com.32pixels
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: "7.4.1"
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess
+    from: "4.2.2"
+  ArgumentParser:
+    url: https://github.com/apple/swift-argument-parser
+    from: "1.5.0"
+
+targets:
+  GeckoIssues:
+    type: application
+    platform: macOS
+    sources:
+      - path: GeckoIssuesApp
+    dependencies:
+      - package: GRDB
+      - package: KeychainAccess
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.32pixels.GeckoIssues
+        PRODUCT_NAME: Gecko Issues
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+    scheme:
+      testTargets:
+        - GeckoIssuesTests
+
+  gecko:
+    type: tool
+    platform: macOS
+    sources:
+      - path: GeckoCLI/Sources
+    dependencies:
+      - package: GRDB
+      - package: KeychainAccess
+      - package: ArgumentParser
+    settings:
+      base:
+        PRODUCT_NAME: gecko
+    scheme:
+      gatherCoverageData: false
+
+  GeckoIssuesTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: GeckoIssuesTests
+    dependencies:
+      - target: GeckoIssues
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.32pixels.GeckoIssuesTests
+        GENERATE_INFOPLIST_FILE: true
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Gecko Issues.app/Contents/MacOS/Gecko Issues"
+        BUNDLE_LOADER: "$(TEST_HOST)"
