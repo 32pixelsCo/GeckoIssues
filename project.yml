@@ -57,6 +57,8 @@ targets:
     settings:
       base:
         PRODUCT_NAME: gecko
+    scheme:
+      gatherCoverageData: false
 
   GeckoIssuesTests:
     type: bundle.unit-test
