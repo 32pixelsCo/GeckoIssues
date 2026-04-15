@@ -48,7 +48,7 @@ targets:
     type: tool
     platform: macOS
     sources:
-      - path: Sources/CLI
+      - path: GeckoCLI/Sources
       - path: Sources/Shared
     dependencies:
       - package: GRDB

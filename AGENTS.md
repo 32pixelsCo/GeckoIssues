@@ -9,13 +9,13 @@ GeckoIssues — native macOS app (Swift 6.0, SwiftUI) for managing GitHub Issues
 ```bash
 # Build (generate project first if .xcodeproj is missing or stale)
 xcodegen generate
-xcodebuild -scheme GeckoIssues -destination 'platform=macOS' build
+xcodebuild -project GeckoIssues.xcodeproj -scheme GeckoIssues -destination 'platform=macOS' build
 
 # Test
-xcodebuild -scheme GeckoIssuesTests -destination 'platform=macOS' test
+xcodebuild -project GeckoIssues.xcodeproj -scheme GeckoIssues -destination 'platform=macOS' test
 
 # Build CLI only
-swift build --product gecko
+cd GeckoCLI && swift build --product gecko
 ```
 
 ## Planning Docs

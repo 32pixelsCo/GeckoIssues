@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "GeckoIssues",
+    name: "GeckoCLI",
     platforms: [
         .macOS(.v15)
     ],
@@ -20,7 +20,7 @@ let package = Package(
                 .product(name: "KeychainAccess", package: "KeychainAccess"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
-            path: "Sources/CLI"
+            path: "Sources"
         ),
     ]
 )
