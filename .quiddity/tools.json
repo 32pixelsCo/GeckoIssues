@@ -1,0 +1,35 @@
+{
+  "issues": {
+    "tool": "github-issues",
+    "project": "Gecko Issues Dev",
+    "states": {
+      "backlog": "Backlog",
+      "todo": "Todo",
+      "inProgress": "In Progress",
+      "inReview": "In Review",
+      "done": "Done"
+    },
+    "labels": ["bug", "feature"]
+  },
+  "source-control": {
+    "tool": "github",
+    "baseBranch": "main",
+    "branchFormat": "{{issue-number}}-{{slug}}",
+    "commitFormat": "free-form"
+  },
+  "ci": {
+    "tool": "github-actions",
+    "status": "planned",
+    "checks": [],
+    "localChecks": [
+      "xcodebuild -scheme GeckoIssues -destination 'platform=macOS' build",
+      "xcodebuild -scheme GeckoIssuesTests -destination 'platform=macOS' test"
+    ]
+  },
+  "pr": {
+    "mergeStrategy": "squash",
+    "deleteBranch": true,
+    "requiredApprovals": 0,
+    "hasTemplate": false
+  }
+}
