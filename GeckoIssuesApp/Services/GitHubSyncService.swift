@@ -101,7 +101,7 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
             authorLogin: node.author?.login,
             milestone: node.milestone.map { m in
                 MilestoneData(
-                    databaseId: m.databaseId,
+                    databaseId: numericId(from: m.id),
                     number: m.number,
                     title: m.title,
                     description: m.description,
@@ -111,7 +111,7 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
             },
             labels: node.labels.nodes.map { l in
                 LabelData(
-                    databaseId: l.databaseId,
+                    databaseId: numericId(from: l.id),
                     name: l.name,
                     color: l.color,
                     description: l.description
@@ -122,7 +122,7 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
             },
             comments: node.comments.nodes.map { c in
                 CommentData(
-                    databaseId: c.databaseId,
+                    databaseId: numericId(from: c.id),
                     authorLogin: c.author?.login,
                     body: c.body,
                     createdAt: c.createdAt,
@@ -290,7 +290,7 @@ private struct AuthorNode: Decodable, Sendable {
 }
 
 private struct MilestoneNode: Decodable, Sendable {
-    let databaseId: Int64
+    let id: String
     let number: Int
     let title: String
     let description: String?
@@ -303,7 +303,7 @@ private struct LabelConnection: Decodable, Sendable {
 }
 
 private struct LabelNode: Decodable, Sendable {
-    let databaseId: Int64
+    let id: String
     let name: String
     let color: String
     let description: String?
@@ -324,7 +324,7 @@ private struct CommentConnection: Decodable, Sendable {
 }
 
 private struct CommentNode: Decodable, Sendable {
-    let databaseId: Int64
+    let id: String
     let author: AuthorNode?
     let body: String
     let createdAt: String
@@ -393,7 +393,7 @@ private enum Queries {
             closedAt
             author { login }
             milestone {
-              databaseId
+              id
               number
               title
               description
@@ -401,14 +401,14 @@ private enum Queries {
               dueOn
             }
             labels(first: 100) {
-              nodes { databaseId name color description }
+              nodes { id name color description }
             }
             assignees(first: 100) {
               nodes { databaseId login avatarUrl }
             }
             comments(first: 100) {
               nodes {
-                databaseId
+                id
                 author { login }
                 body
                 createdAt
@@ -421,4 +421,26 @@ private enum Queries {
       }
     }
     """
+}
+
+// MARK: - Node ID Helpers
+
+/// Extract a numeric database ID from a GitHub GraphQL node ID.
+///
+/// GitHub node IDs are base64-encoded strings like `MDk6TWlsZXN0b25lMTIz`
+/// which decode to `09:Milestone123`. The trailing digits are the database ID.
+/// Falls back to a stable hash if the format is unexpected.
+private func numericId(from nodeId: String) -> Int64 {
+    if let data = Data(base64Encoded: nodeId),
+       let decoded = String(data: data, encoding: .utf8) {
+        // Extract trailing digits: "09:Milestone123" → "123"
+        let digits = String(decoded.reversed().prefix(while: \.isNumber).reversed())
+        if let id = Int64(digits), id > 0 {
+            return id
+        }
+    }
+    // Fallback: stable hash for unexpected formats
+    var hasher = Hasher()
+    hasher.combine(nodeId)
+    return Int64(abs(hasher.finalize()))
 }
