@@ -6,6 +6,8 @@ struct ContentView: View {
     var syncStore: SyncStore
     var authStore: AuthStore
 
+    @State private var dbStatus: String?
+
     var body: some View {
         NavigationSplitView {
             Text("Sidebar")
@@ -34,12 +36,31 @@ struct ContentView: View {
                     Button("Sign Out") {
                         authStore.signOut()
                     }
+
+                    // TODO: Remove — temporary button to verify database creation
+                    Button("Create Database") {
+                        do {
+                            let db = try AppDatabase()
+                            let tables = try db.dbQueue.read { db in
+                                try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+                            }
+                            dbStatus = "Created \(tables.count) tables: \(tables.joined(separator: ", "))"
+                        } catch {
+                            dbStatus = "Error: \(error.localizedDescription)"
+                        }
+                    }
                 }
 
                 if let error = authStore.errorMessage {
                     Text(error)
                         .foregroundStyle(.red)
                         .font(.callout)
+                }
+
+                if let dbStatus {
+                    Text(dbStatus)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding()
