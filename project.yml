@@ -30,7 +30,6 @@ targets:
     platform: macOS
     sources:
       - path: GeckoIssuesApp
-      - path: Shared
     dependencies:
       - package: GRDB
       - package: KeychainAccess
@@ -49,7 +48,6 @@ targets:
     platform: macOS
     sources:
       - path: GeckoCLI/Sources
-      - path: Shared
     dependencies:
       - package: GRDB
       - package: KeychainAccess
