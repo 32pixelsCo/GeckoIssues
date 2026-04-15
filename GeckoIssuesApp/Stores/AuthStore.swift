@@ -1,11 +1,11 @@
 import Foundation
 import AppKit
+import os
 
 /// Manages OAuth Device Flow authentication with GitHub.
 ///
 /// Orchestrates the sign-in lifecycle: initiating device flow, polling for
-/// authorization, storing the access token, and handling errors. Keychain
-/// persistence is handled separately — this store holds the token in memory.
+/// authorization, persisting credentials in the Keychain, and handling errors.
 @MainActor @Observable
 final class AuthStore {
 
@@ -28,6 +28,8 @@ final class AuthStore {
     // MARK: - Dependencies
 
     private let deviceFlowService: DeviceFlowService
+    private let keychainService: KeychainService
+    private let logger = Logger(subsystem: "com.32pixels.GeckoIssues", category: "AuthStore")
 
     // MARK: - Internal
 
@@ -35,8 +37,30 @@ final class AuthStore {
 
     // MARK: - Initialization
 
-    init(deviceFlowService: DeviceFlowService = DeviceFlowService()) {
+    init(
+        deviceFlowService: DeviceFlowService = DeviceFlowService(),
+        keychainService: KeychainService = KeychainService()
+    ) {
         self.deviceFlowService = deviceFlowService
+        self.keychainService = keychainService
+        restoreSession()
+    }
+
+    // MARK: - Session Restoration
+
+    /// Restore a previously authenticated session from the Keychain.
+    private func restoreSession() {
+        do {
+            guard let token = try keychainService.retrieveAccessToken(),
+                  let username = try keychainService.retrieveUsername() else {
+                return
+            }
+            accessToken = token
+            state = .authenticated(username: username)
+            logger.info("Restored session for \(username, privacy: .public)")
+        } catch {
+            logger.error("Failed to restore session from Keychain: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Sign In
@@ -70,6 +94,15 @@ final class AuthStore {
                 let username = try await fetchUsername(token: token)
                 state = .authenticated(username: username)
 
+                // Persist credentials to Keychain
+                do {
+                    try keychainService.saveAccessToken(token)
+                    try keychainService.saveUsername(username)
+                    logger.info("Saved credentials for \(username, privacy: .public)")
+                } catch {
+                    logger.error("Failed to save credentials to Keychain: \(error.localizedDescription)")
+                }
+
             } catch is CancellationError {
                 state = .unauthenticated
             } catch let error as URLError where error.code == .notConnectedToInternet
@@ -94,13 +127,20 @@ final class AuthStore {
 
     // MARK: - Sign Out
 
-    /// Sign out and clear the access token.
+    /// Sign out, clear the access token, and remove credentials from the Keychain.
     func signOut() {
         pollTask?.cancel()
         pollTask = nil
         accessToken = nil
         state = .unauthenticated
         errorMessage = nil
+
+        do {
+            try keychainService.deleteAll()
+            logger.info("Cleared credentials from Keychain")
+        } catch {
+            logger.error("Failed to clear credentials from Keychain: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Helpers
