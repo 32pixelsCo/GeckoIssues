@@ -115,7 +115,7 @@ struct GraphQLClient: Sendable {
         let encoder = JSONEncoder()
         for (key, value) in dict {
             let data = try encoder.encode(AnyEncodable(value))
-            let json = try JSONSerialization.jsonObject(with: data)
+            let json = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
             result[key] = json
         }
         return result

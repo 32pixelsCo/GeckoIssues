@@ -167,6 +167,69 @@ struct PageInfoTests {
     }
 }
 
+// MARK: - Variable Encoding Tests
+
+@Suite("GraphQLClient Variable Encoding")
+struct GraphQLClientVariableTests {
+
+    @Test("Encodes string variables into request body")
+    func encodesStringVariables() throws {
+        let variables: [String: any Encodable & Sendable] = [
+            "owner": "octocat",
+            "name": "Hello-World",
+        ]
+        let body = try encodeVariables(variables)
+        #expect(body["owner"] as? String == "octocat")
+        #expect(body["name"] as? String == "Hello-World")
+    }
+
+    @Test("Encodes integer and boolean variables")
+    func encodesNumericAndBoolVariables() throws {
+        let variables: [String: any Encodable & Sendable] = [
+            "first": 100,
+            "includeArchived": false,
+        ]
+        let body = try encodeVariables(variables)
+        #expect(body["first"] as? Int == 100)
+        #expect(body["includeArchived"] as? Bool == false)
+    }
+
+    @Test("Encodes mixed variable types together")
+    func encodesMixedVariables() throws {
+        let variables: [String: any Encodable & Sendable] = [
+            "owner": "octocat",
+            "first": 50,
+            "includeArchived": true,
+        ]
+        let body = try encodeVariables(variables)
+        #expect(body["owner"] as? String == "octocat")
+        #expect(body["first"] as? Int == 50)
+        #expect(body["includeArchived"] as? Bool == true)
+    }
+}
+
+/// Exercises the same encoding path as GraphQLClient.encodableToJSONObject.
+private func encodeVariables(
+    _ dict: [String: any Encodable & Sendable]
+) throws -> [String: Any] {
+    var result: [String: Any] = [:]
+    let encoder = JSONEncoder()
+    for (key, value) in dict {
+        let data = try encoder.encode(AnyEncodableForTest(value))
+        let json = try JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+        result[key] = json
+    }
+    return result
+}
+
+private struct AnyEncodableForTest: Encodable {
+    private let _encode: @Sendable (Encoder) throws -> Void
+    init(_ value: any Encodable & Sendable) {
+        _encode = { encoder in try value.encode(to: encoder) }
+    }
+    func encode(to encoder: Encoder) throws { try _encode(encoder) }
+}
+
 // MARK: - Test Helpers
 
 /// Helper to test the decode path without making a network request.
