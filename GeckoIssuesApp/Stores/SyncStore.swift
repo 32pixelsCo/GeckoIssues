@@ -118,10 +118,16 @@ final class SyncStore {
                 state = .idle
                 logger.info("Sync cancelled")
             } catch {
-                let message = error.localizedDescription
-                state = .error(message)
-                errorMessage = message
-                logger.error("Sync failed: \(message)")
+                // URLSession and GRDB may wrap CancellationError
+                if Task.isCancelled {
+                    state = .idle
+                    logger.info("Sync cancelled")
+                } else {
+                    let message = error.localizedDescription
+                    state = .error(message)
+                    errorMessage = message
+                    logger.error("Sync failed: \(message)")
+                }
             }
         }
     }
