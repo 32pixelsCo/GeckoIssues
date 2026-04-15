@@ -5,7 +5,7 @@ import Foundation
 /// Device Flow: app requests a device code -> user enters code at github.com/login/device
 /// -> app polls until authorized -> receives access token.
 struct DeviceFlowService: Sendable {
-    static let clientID = "REPLACE_WITH_CLIENT_ID"
+    static let clientID = "Ov23likOfwNDT0RWfjYZ"
 
     private static let scope = "repo read:org read:project"
     private static let deviceCodeURL = URL(string: "https://github.com/login/device/code")!
