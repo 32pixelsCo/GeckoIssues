@@ -37,6 +37,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.32pixels.GeckoIssues
         PRODUCT_NAME: Gecko Issues
+        PRODUCT_MODULE_NAME: GeckoIssues
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
     scheme:
