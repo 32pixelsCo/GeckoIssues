@@ -29,8 +29,8 @@ targets:
     type: application
     platform: macOS
     sources:
-      - path: Sources/App
-      - path: Sources/Shared
+      - path: GeckoIssuesApp
+      - path: Shared
     dependencies:
       - package: GRDB
       - package: KeychainAccess
@@ -49,7 +49,7 @@ targets:
     platform: macOS
     sources:
       - path: GeckoCLI/Sources
-      - path: Sources/Shared
+      - path: Shared
     dependencies:
       - package: GRDB
       - package: KeychainAccess
