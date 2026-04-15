@@ -6,8 +6,6 @@ struct ContentView: View {
     var syncStore: SyncStore
     var authStore: AuthStore
 
-    @State private var dbStatus: String?
-
     var body: some View {
         NavigationSplitView {
             Text("Sidebar")
@@ -33,20 +31,12 @@ struct ContentView: View {
 
                 case .authenticated(let username):
                     Text("Signed in as **\(username)**")
-                    Button("Sign Out") {
-                        authStore.signOut()
-                    }
 
-                    // TODO: Remove — temporary button to verify database creation
-                    Button("Create Database") {
-                        do {
-                            let db = try AppDatabase()
-                            let tables = try db.dbQueue.read { db in
-                                try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-                            }
-                            dbStatus = "Created \(tables.count) tables: \(tables.joined(separator: ", "))"
-                        } catch {
-                            dbStatus = "Error: \(error.localizedDescription)"
+                    syncStatusView
+
+                    HStack {
+                        Button("Sign Out") {
+                            authStore.signOut()
                         }
                     }
                 }
@@ -56,14 +46,69 @@ struct ContentView: View {
                         .foregroundStyle(.red)
                         .font(.callout)
                 }
-
-                if let dbStatus {
-                    Text(dbStatus)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
             }
             .padding()
+        }
+    }
+
+    // MARK: - Sync Status
+
+    @ViewBuilder
+    private var syncStatusView: some View {
+        switch syncStore.state {
+        case .idle:
+            Button("Sync Now") {
+                guard let token = authStore.accessToken else { return }
+                syncStore.startFullSync(token: token)
+            }
+
+        case .syncing(let progress):
+            VStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.small)
+
+                switch progress.phase {
+                case .fetchingAccount:
+                    Text("Fetching account...")
+                        .foregroundStyle(.secondary)
+                case .fetchingRepositories:
+                    Text("Fetching repositories...")
+                        .foregroundStyle(.secondary)
+                case .syncingRepository(let name):
+                    Text("Syncing \(name)...")
+                        .foregroundStyle(.secondary)
+                    if progress.repositoriesTotal > 0 {
+                        Text("\(progress.repositoriesSynced) of \(progress.repositoriesTotal) repositories")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            Button("Cancel Sync") {
+                syncStore.cancelSync()
+            }
+
+        case .completed:
+            SwiftUI.Label("Sync complete", systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+
+            Button("Sync Again") {
+                guard let token = authStore.accessToken else { return }
+                syncStore.startFullSync(token: token)
+            }
+
+        case .error(let message):
+            SwiftUI.Label("Sync failed", systemImage: "exclamationmark.triangle.fill")
+                .foregroundStyle(.red)
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Button("Retry Sync") {
+                guard let token = authStore.accessToken else { return }
+                syncStore.startFullSync(token: token)
+            }
         }
     }
 }
