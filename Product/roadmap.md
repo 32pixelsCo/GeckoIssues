@@ -7,16 +7,16 @@ Issues within each milestone are ordered so the app never feels broken mid-miles
 
 *Read-only snapshot of issues from GitHub.*
 
-- [x] Project setup (XcodeGen, targets, GRDB, dependencies)
-- [x] OAuth Device Flow authentication with github.com
-- [x] Keychain credential storage
-- [x] GitHub GraphQL client
-- [x] Local SQLite schema (repos, issues, labels, milestones, assignees, comments)
-- [x] Initial full sync of repositories and issues
-- [x] Repository list in sidebar
-- [x] Issue list view with basic sorting (updated, created, title)
-- [x] Issue detail view (title, body rendered as markdown, state, labels, assignees, milestone)
-- [x] Comments list on issue detail
+- [x] Project setup (XcodeGen, targets, GRDB, dependencies) [#1](https://github.com/32pixelsCo/GeckoIssues/issues/1)
+- [x] OAuth Device Flow authentication with github.com [#2](https://github.com/32pixelsCo/GeckoIssues/issues/2)
+- [x] Keychain credential storage [#3](https://github.com/32pixelsCo/GeckoIssues/issues/3)
+- [x] GitHub GraphQL client [#4](https://github.com/32pixelsCo/GeckoIssues/issues/4)
+- [x] Local SQLite schema (repos, issues, labels, milestones, assignees, comments) [#5](https://github.com/32pixelsCo/GeckoIssues/issues/5)
+- [x] Initial full sync of repositories and issues [#6](https://github.com/32pixelsCo/GeckoIssues/issues/6)
+- [x] Repository list in sidebar [#7](https://github.com/32pixelsCo/GeckoIssues/issues/7)
+- [x] Issue list view with basic sorting (updated, created, title) [#8](https://github.com/32pixelsCo/GeckoIssues/issues/8)
+- [x] Issue detail view (title, body rendered as markdown, state, labels, assignees, milestone) [#9](https://github.com/32pixelsCo/GeckoIssues/issues/9)
+- [x] Comments list on issue detail [#10](https://github.com/32pixelsCo/GeckoIssues/issues/10)
 
 ## M2: Curated, Live Sync
 
