@@ -20,7 +20,8 @@ struct GeckoIssuesApp: App {
                 appStore: appStore,
                 navigationStore: navigationStore,
                 syncStore: syncStore,
-                authStore: authStore
+                authStore: authStore,
+                database: database
             )
         }
     }
