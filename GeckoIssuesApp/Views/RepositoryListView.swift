@@ -33,16 +33,32 @@ struct RepositoryListView: View {
                 }
             }
         }
-        .searchable(text: $filterText, placement: .sidebar, prompt: "Filter repos...")
         .safeAreaInset(edge: .top) {
             if !appStore.accounts.isEmpty {
-                AccountPicker(
-                    accounts: appStore.accounts,
-                    selectedAccount: Binding(
-                        get: { appStore.selectedAccount },
-                        set: { appStore.selectedAccount = $0 }
+                VStack(spacing: 6) {
+                    AccountPicker(
+                        accounts: appStore.accounts,
+                        selectedAccount: Binding(
+                            get: { appStore.selectedAccount },
+                            set: { appStore.selectedAccount = $0 }
+                        )
                     )
-                )
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 12))
+                        TextField("Filter repos...", text: $filterText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+                    )
+                }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
             }
