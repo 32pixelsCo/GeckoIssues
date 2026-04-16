@@ -11,15 +11,27 @@ struct ContentView: View {
         NavigationSplitView {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
                 .navigationTitle("Repositories")
-        } detail: {
+        } content: {
             if appStore.selectedRepository != nil {
-                IssueListView(
-                    appStore: appStore,
-                    syncStore: syncStore,
-                    database: database
-                )
+                IssueListView(appStore: appStore, syncStore: syncStore, database: database)
             } else {
+                ContentUnavailableView(
+                    "Select a Repository",
+                    systemImage: "folder",
+                    description: Text("Choose a repository from the sidebar.")
+                )
+            }
+        } detail: {
+            if let issue = appStore.selectedIssue {
+                IssueDetailView(issue: issue, database: database)
+            } else if appStore.selectedRepository == nil {
                 authAndSyncView
+            } else {
+                ContentUnavailableView(
+                    "No Issue Selected",
+                    systemImage: "doc.text",
+                    description: Text("Select an issue to view its details.")
+                )
             }
         }
     }
