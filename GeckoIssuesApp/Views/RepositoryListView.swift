@@ -33,6 +33,7 @@ struct RepositoryListView: View {
                 }
             }
         }
+        .searchable(text: $filterText, placement: .sidebar, prompt: "Filter repos...")
         .safeAreaInset(edge: .top) {
             if !appStore.accounts.isEmpty {
                 AccountPicker(
@@ -46,7 +47,6 @@ struct RepositoryListView: View {
                 .padding(.vertical, 6)
             }
         }
-        .searchable(text: $filterText, placement: .sidebar, prompt: "Filter repos...")
         .task {
             await appStore.loadAccounts(from: database)
             await loadRepositories()
