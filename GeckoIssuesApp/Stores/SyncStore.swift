@@ -79,9 +79,40 @@ final class SyncStore {
                     repositoriesTotal: 0
                 ))
 
-                let repos = try await syncService.fetchRepositories(token: token)
+                var repos = try await syncService.fetchRepositories(token: token)
                 try Task.checkCancellation()
-                logger.info("Fetched \(repos.count) repositories")
+                logger.info("Fetched \(repos.count) repositories from viewer")
+
+                // Step 2b: Discover org accounts and fetch their repos directly
+                var seenRepoIds = Set(repos.map(\.databaseId))
+                let orgLogins = Set(
+                    repos
+                        .filter { $0.owner.typeName == "Organization" }
+                        .map(\.owner.login)
+                )
+                for orgLogin in orgLogins {
+                    try Task.checkCancellation()
+                    do {
+                        let orgRepos = try await syncService.fetchOrganizationRepositories(
+                            login: orgLogin,
+                            token: token
+                        )
+                        var newCount = 0
+                        for repo in orgRepos where !seenRepoIds.contains(repo.databaseId) {
+                            seenRepoIds.insert(repo.databaseId)
+                            repos.append(repo)
+                            newCount += 1
+                        }
+                        if newCount > 0 {
+                            logger.info("Fetched \(newCount) additional repos from org \(orgLogin)")
+                        }
+                    } catch {
+                        // Non-fatal: org query may fail if token lacks permission
+                        logger.warning("Failed to fetch repos for org \(orgLogin): \(error.localizedDescription)")
+                    }
+                }
+
+                logger.info("Total repositories: \(repos.count)")
 
                 // Step 3: Save account + repos
                 try await persistAccountsAndRepos(viewer: viewer, repos: repos)

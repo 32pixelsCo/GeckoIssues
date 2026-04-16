@@ -7,6 +7,7 @@ import os
 protocol SyncServiceProtocol: Sendable {
     func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData]
+    func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData]
 }
 
@@ -45,6 +46,39 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
             token: token
         ) { (response: ViewerReposResponse) in
             let conn = response.viewer.repositories
+            return GraphQLClient.Page(
+                data: conn.nodes,
+                pageInfo: conn.pageInfo
+            )
+        }
+
+        return nodes.map { node in
+            RepositoryData(
+                databaseId: node.databaseId,
+                name: node.name,
+                nameWithOwner: node.nameWithOwner,
+                isPrivate: node.isPrivate,
+                description: node.description,
+                url: node.url,
+                owner: OwnerData(
+                    databaseId: node.owner.databaseId,
+                    login: node.owner.login,
+                    avatarUrl: node.owner.avatarUrl,
+                    typeName: node.owner.typeName
+                )
+            )
+        }
+    }
+
+    // MARK: - Fetch Organization Repositories
+
+    func fetchOrganizationRepositories(login: String, token: String) async throws -> [RepositoryData] {
+        let nodes: [RepoNode] = try await client.executePaginated(
+            query: Queries.organizationRepositories,
+            variables: ["login": login],
+            token: token
+        ) { (response: OrgReposResponse) in
+            let conn = response.organization.repositories
             return GraphQLClient.Page(
                 data: conn.nodes,
                 pageInfo: conn.pageInfo
@@ -255,6 +289,14 @@ private struct OwnerNode: Decodable, Sendable {
     }
 }
 
+private struct OrgReposResponse: Decodable, Sendable {
+    let organization: OrgReposNode
+}
+
+private struct OrgReposNode: Decodable, Sendable {
+    let repositories: RepoConnection
+}
+
 private struct RepoIssuesResponse: Decodable, Sendable {
     let repository: RepositoryIssuesNode
 }
@@ -352,6 +394,32 @@ private enum Queries {
           first: 100,
           after: $after,
           ownerAffiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]
+        ) {
+          nodes {
+            databaseId
+            name
+            nameWithOwner
+            isPrivate
+            description
+            url
+            owner {
+              ... on User { databaseId login avatarUrl }
+              ... on Organization { databaseId login avatarUrl }
+              __typename
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+    """
+
+    static let organizationRepositories = """
+    query($login: String!, $after: String) {
+      organization(login: $login) {
+        repositories(
+          first: 100,
+          after: $after
         ) {
           nodes {
             databaseId

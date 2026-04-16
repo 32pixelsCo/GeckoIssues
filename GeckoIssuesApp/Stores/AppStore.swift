@@ -7,6 +7,7 @@ final class AppStore {
     var accounts: [Account] = []
     var selectedAccount: Account?
     var selectedRepository: Repository?
+    var selectedIssue: Issue?
 
     /// Load accounts from the database, sorted with user accounts first, then orgs.
     func loadAccounts(from database: AppDatabase) async {

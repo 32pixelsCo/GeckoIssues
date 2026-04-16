@@ -12,45 +12,60 @@ struct ContentView: View {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
                 .navigationTitle("Repositories")
         } detail: {
-            VStack(spacing: 16) {
-                switch authStore.state {
-                case .unauthenticated:
-                    Text("Not signed in")
-                        .foregroundStyle(.secondary)
-                    Button("Sign In with GitHub") {
-                        authStore.signIn()
-                    }
+            if appStore.selectedRepository != nil {
+                IssueListView(
+                    appStore: appStore,
+                    syncStore: syncStore,
+                    database: database
+                )
+            } else {
+                authAndSyncView
+            }
+        }
+    }
 
-                case .authorizing(let userCode, _):
-                    Text("Enter this code on GitHub:")
-                        .foregroundStyle(.secondary)
-                    Text(userCode)
-                        .font(.system(size: 32, weight: .bold, design: .monospaced))
-                        .textSelection(.enabled)
-                    Button("Cancel") {
-                        authStore.cancelSignIn()
-                    }
+    // MARK: - Auth & Sync
 
-                case .authenticated(let username):
-                    Text("Signed in as **\(username)**")
-
-                    syncStatusView
-
-                    HStack {
-                        Button("Sign Out") {
-                            authStore.signOut()
-                        }
-                    }
+    @ViewBuilder
+    private var authAndSyncView: some View {
+        VStack(spacing: 16) {
+            switch authStore.state {
+            case .unauthenticated:
+                Text("Not signed in")
+                    .foregroundStyle(.secondary)
+                Button("Sign In with GitHub") {
+                    authStore.signIn()
                 }
 
-                if let error = authStore.errorMessage {
-                    Text(error)
-                        .foregroundStyle(.red)
-                        .font(.callout)
+            case .authorizing(let userCode, _):
+                Text("Enter this code on GitHub:")
+                    .foregroundStyle(.secondary)
+                Text(userCode)
+                    .font(.system(size: 32, weight: .bold, design: .monospaced))
+                    .textSelection(.enabled)
+                Button("Cancel") {
+                    authStore.cancelSignIn()
+                }
+
+            case .authenticated(let username):
+                Text("Signed in as **\(username)**")
+
+                syncStatusView
+
+                HStack {
+                    Button("Sign Out") {
+                        authStore.signOut()
+                    }
                 }
             }
-            .padding()
+
+            if let error = authStore.errorMessage {
+                Text(error)
+                    .foregroundStyle(.red)
+                    .font(.callout)
+            }
         }
+        .padding()
     }
 
     // MARK: - Sync Status
