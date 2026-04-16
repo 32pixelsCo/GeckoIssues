@@ -10,6 +10,7 @@ struct IssueDetailView: View {
     @State private var labels: [Label] = []
     @State private var assignees: [User] = []
     @State private var milestone: Milestone?
+    @State private var comments: [Comment] = []
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -34,6 +35,9 @@ struct IssueDetailView: View {
                     Text("No description provided.")
                         .foregroundStyle(.secondary)
                         .italic()
+                }
+                if !comments.isEmpty {
+                    commentsSection
                 }
             }
             .padding(20)
@@ -71,6 +75,34 @@ struct IssueDetailView: View {
         .background(issue.state == .open ? Color.green : Color.purple)
         .clipShape(Capsule())
         .accessibilityLabel(issue.state == .open ? "Open issue" : "Closed issue")
+    }
+
+    // MARK: - Comments
+
+    private var commentsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: 1)
+                Text("Comments (\(comments.count))")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .fixedSize()
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.3))
+                    .frame(height: 1)
+            }
+            .padding(.vertical, 8)
+
+            ForEach(comments, id: \.id) { comment in
+                CommentRow(comment: comment)
+                if comment.id != comments.last?.id {
+                    Divider()
+                        .padding(.vertical, 8)
+                }
+            }
+        }
     }
 
     // MARK: - Sidebar
@@ -163,7 +195,7 @@ struct IssueDetailView: View {
 
     private func loadDetail() async {
         do {
-            let (loadedLabels, loadedAssignees, loadedMilestone) = try await database.dbQueue.read { db in
+            let (loadedLabels, loadedAssignees, loadedMilestone, loadedComments) = try await database.dbQueue.read { db in
                 let labels = try issue.labels.fetchAll(db)
                 let assignees = try issue.assignedUsers.fetchAll(db)
                 let milestone: Milestone?
@@ -172,13 +204,43 @@ struct IssueDetailView: View {
                 } else {
                     milestone = nil
                 }
-                return (labels, assignees, milestone)
+                let comments = try issue.comments.order(Column("createdAt").asc).fetchAll(db)
+                return (labels, assignees, milestone, comments)
             }
             labels = loadedLabels
             assignees = loadedAssignees
             milestone = loadedMilestone
+            comments = loadedComments
         } catch {
             // Non-fatal; sidebar stays empty
         }
+    }
+}
+
+// MARK: - Comment Row
+
+private struct CommentRow: View {
+    var comment: Comment
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("@\(comment.authorLogin ?? "unknown")")
+                    .font(.system(size: 12, weight: .semibold))
+                    .accessibilityLabel("Comment by \(comment.authorLogin ?? "unknown")")
+                Text("·")
+                    .foregroundStyle(.secondary)
+                Text(relativeTimestamp)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            MarkdownBody(text: comment.body)
+        }
+    }
+
+    private var relativeTimestamp: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: comment.createdAt, relativeTo: Date())
     }
 }
