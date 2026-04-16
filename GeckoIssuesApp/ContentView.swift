@@ -5,10 +5,12 @@ struct ContentView: View {
     var navigationStore: NavigationStore
     var syncStore: SyncStore
     var authStore: AuthStore
+    var database: AppDatabase
 
     var body: some View {
         NavigationSplitView {
-            Text("Sidebar")
+            RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
+                .navigationTitle("Repositories")
         } detail: {
             VStack(spacing: 16) {
                 switch authStore.state {
