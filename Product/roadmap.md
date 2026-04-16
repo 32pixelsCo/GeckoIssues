@@ -17,6 +17,7 @@ Issues within each milestone are ordered so the app never feels broken mid-miles
 - [x] Issue list view with basic sorting (updated, created, title) [#8](https://github.com/32pixelsCo/GeckoIssues/issues/8)
 - [x] Issue detail view (title, body rendered as markdown, state, labels, assignees, milestone) [#9](https://github.com/32pixelsCo/GeckoIssues/issues/9)
 - [x] Comments list on issue detail [#10](https://github.com/32pixelsCo/GeckoIssues/issues/10)
+- [x] Org-based sidebar nav — active org switcher with repos listed beneath
 
 ## M2: Curated, Live Sync
 
@@ -25,7 +26,6 @@ Issues within each milestone are ordered so the app never feels broken mid-miles
 End state: open the app, complete a guided setup, pick your org and repos, and their issues stay current automatically.
 
 - [ ] Onboarding wizard — 4-step wizard on first launch: (1) Connect GitHub via OAuth, (2) Select your first org, (3) Select repos to sync, (4) Initial sync
-- [ ] Org-based sidebar nav — sidebar shows the active org (with switcher popup) and its tracked repos beneath
 - [ ] Settings — add/remove organizations; adding an org reuses the onboarding wizard from step 2
 - [ ] Selective sync — only sync repos you've added
 - [ ] Incremental sync — use `updatedAt` cursors instead of full re-fetch
