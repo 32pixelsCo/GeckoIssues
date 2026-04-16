@@ -20,13 +20,14 @@ Issues within each milestone are ordered so the app never feels broken mid-miles
 
 ## M2: Curated, Live Sync
 
-*User controls which repos are tracked and trusts the data is always fresh.*
+*User controls which orgs and repos are tracked and trusts the data is always fresh.*
 
-End state: open the app, authenticate, pin the repos you care about, and their issues stay current automatically.
+End state: open the app, complete a guided setup, pick your org and repos, and their issues stay current automatically.
 
-- [ ] Repository management — add/remove repos to track from the sidebar
+- [ ] Onboarding wizard — 4-step wizard on first launch: (1) Connect GitHub via OAuth, (2) Select your first org, (3) Select repos to sync, (4) Initial sync
+- [ ] Org-based sidebar nav — sidebar shows the active org (with switcher popup) and its tracked repos beneath
+- [ ] Settings — add/remove organizations; adding an org reuses the onboarding wizard from step 2
 - [ ] Selective sync — only sync repos you've added
-- [ ] First-launch auth prompt — surface "Connect to GitHub" on cold start if unauthenticated
 - [ ] Incremental sync — use `updatedAt` cursors instead of full re-fetch
 - [ ] Background refresh — poll on a configurable interval while app is active
 - [ ] Sync status indicator — show sync state (idle / syncing / error / offline) in the UI
@@ -94,7 +95,6 @@ End state: Cmd+K opens a fast, full-text palette that searches issues, repos, an
 
 *Ship a 1.0 that people love.*
 
-- [ ] Onboarding wizard (auth → select repos → select projects → initial config)
 - [ ] App icon and branding
 - [ ] Empty states for all views
 - [ ] Loading states and sync progress
