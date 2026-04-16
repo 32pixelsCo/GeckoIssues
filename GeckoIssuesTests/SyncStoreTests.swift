@@ -8,6 +8,7 @@ import GRDB
 struct MockSyncService: SyncServiceProtocol, Sendable {
     var viewer: GitHubSyncService.ViewerData
     var repositories: [GitHubSyncService.RepositoryData]
+    var orgRepositories: [String: [GitHubSyncService.RepositoryData]] = [:]
     var issuesByRepo: [String: [GitHubSyncService.IssueData]]
 
     func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData {
@@ -16,6 +17,10 @@ struct MockSyncService: SyncServiceProtocol, Sendable {
 
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData] {
         repositories
+    }
+
+    func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData] {
+        orgRepositories[login] ?? []
     }
 
     func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData] {
@@ -31,6 +36,10 @@ struct FailingSyncService: SyncServiceProtocol, Sendable {
     }
 
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData] {
+        throw error
+    }
+
+    func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData] {
         throw error
     }
 
@@ -472,6 +481,49 @@ struct SyncStoreTests {
 
         let org = accounts.first { $0.login == "my-org" }
         #expect(org?.type == .organization)
+    }
+    @Test("Sync fetches additional org repos not returned by viewer query")
+    @MainActor
+    func syncFetchesOrgRepos() async throws {
+        let db = try AppDatabase.inMemory()
+        let orgOwner = GitHubSyncService.OwnerData(
+            databaseId: 2,
+            login: "my-org",
+            avatarUrl: nil,
+            typeName: "Organization"
+        )
+
+        // Viewer query returns only one org repo
+        let viewerRepo = makeRepoData(id: 100, name: "repo-a", owner: orgOwner)
+
+        // Org query returns that repo plus two more
+        let orgRepoB = makeRepoData(id: 101, name: "repo-b", owner: orgOwner)
+        let orgRepoC = makeRepoData(id: 102, name: "repo-c", owner: orgOwner)
+
+        let mock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [viewerRepo],
+            orgRepositories: ["my-org": [viewerRepo, orgRepoB, orgRepoC]],
+            issuesByRepo: [:]
+        )
+
+        let store = SyncStore(database: db, syncService: mock)
+        store.startFullSync(token: "token")
+
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store.state { break }
+            if case .error(let msg) = store.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        let repos = try await db.dbQueue.read { db in
+            try Repository.fetchAll(db)
+        }
+        // Should have all 3 repos (1 from viewer + 2 new from org, no duplicates)
+        #expect(repos.count == 3)
+
+        let names = Set(repos.map(\.name))
+        #expect(names == ["repo-a", "repo-b", "repo-c"])
     }
 }
 
