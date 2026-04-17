@@ -15,6 +15,7 @@ final class AppStore {
             accounts = try await database.dbQueue.read { db in
                 try Account
                     .joining(required: Account.repositories.filter(Column("tracked") == true))
+                    .distinct()
                     .order(
                         // Users first, then organizations
                         Column("type").desc,
