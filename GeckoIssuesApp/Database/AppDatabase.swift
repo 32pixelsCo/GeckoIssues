@@ -84,6 +84,7 @@ struct AppDatabase: Sendable {
                 t.column("description", .text)
                 t.column("url", .text).notNull()
                 t.column("syncedAt", .datetime)
+                t.column("tracked", .boolean).notNull().defaults(to: false)
             }
             try db.create(indexOn: "repositories", columns: ["accountId"])
 

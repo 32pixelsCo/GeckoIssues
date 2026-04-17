@@ -138,8 +138,8 @@ final class SyncStore {
 
                 logger.info("Total repositories: \(repos.count)")
 
-                // Step 3: Save accounts + all repos (sidebar filters to syncedAt != nil)
-                try await persistAccountsAndRepos(viewer: viewer, orgAccounts: orgAccounts, repos: repos)
+                // Step 3: Save accounts + all repos; mark selected repos as tracked
+                try await persistAccountsAndRepos(viewer: viewer, orgAccounts: orgAccounts, repos: repos, trackedRepoIds: repoIds)
 
                 // Step 4: Fetch and persist issues — filtered to selected repos if provided
                 let reposToSync = repoIds.map { ids in repos.filter { ids.contains($0.databaseId) } } ?? repos
@@ -193,7 +193,8 @@ final class SyncStore {
     private func persistAccountsAndRepos(
         viewer: GitHubSyncService.ViewerData,
         orgAccounts: [GitHubSyncService.OrganizationData],
-        repos: [GitHubSyncService.RepositoryData]
+        repos: [GitHubSyncService.RepositoryData],
+        trackedRepoIds: Set<Int64>?
     ) async throws {
         try await database.dbQueue.write { db in
             // Upsert viewer account
@@ -236,8 +237,10 @@ final class SyncStore {
                 try ownerAccount.save(db)
             }
 
-            // Upsert repositories
+            // Upsert repositories; preserve existing tracked flag unless explicitly overridden
             for repo in repos {
+                let shouldTrack = trackedRepoIds.map { $0.contains(repo.databaseId) }
+                let existing = try Repository.fetchOne(db, key: repo.databaseId)
                 var repository = Repository(
                     id: repo.databaseId,
                     accountId: repo.owner.databaseId,
@@ -246,7 +249,8 @@ final class SyncStore {
                     isPrivate: repo.isPrivate,
                     description: repo.description,
                     url: repo.url,
-                    syncedAt: nil
+                    syncedAt: existing?.syncedAt,
+                    tracked: shouldTrack ?? existing?.tracked ?? false
                 )
                 try repository.save(db)
             }

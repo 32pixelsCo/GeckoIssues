@@ -11,6 +11,8 @@ struct Repository: Codable, Sendable {
     var description: String?
     var url: String
     var syncedAt: Date?
+    /// Whether the user has explicitly added this repo to track.
+    var tracked: Bool
 }
 
 // MARK: - GRDB Conformance
