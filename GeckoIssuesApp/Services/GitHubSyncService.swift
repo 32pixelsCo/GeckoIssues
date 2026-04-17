@@ -6,6 +6,7 @@ import os
 /// Abstraction over GitHub data fetching for testability.
 protocol SyncServiceProtocol: Sendable {
     func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData
+    func fetchViewerWithOrganizations(token: String) async throws -> GitHubSyncService.ViewerWithOrganizationsData
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData]

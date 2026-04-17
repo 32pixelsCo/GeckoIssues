@@ -7,12 +7,17 @@ import GRDB
 
 struct MockSyncService: SyncServiceProtocol, Sendable {
     var viewer: GitHubSyncService.ViewerData
+    var organizations: [GitHubSyncService.OrganizationData] = []
     var repositories: [GitHubSyncService.RepositoryData]
     var orgRepositories: [String: [GitHubSyncService.RepositoryData]] = [:]
     var issuesByRepo: [String: [GitHubSyncService.IssueData]]
 
     func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData {
         viewer
+    }
+
+    func fetchViewerWithOrganizations(token: String) async throws -> GitHubSyncService.ViewerWithOrganizationsData {
+        GitHubSyncService.ViewerWithOrganizationsData(viewer: viewer, organizations: organizations)
     }
 
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData] {
@@ -32,6 +37,10 @@ struct FailingSyncService: SyncServiceProtocol, Sendable {
     let error: Error
 
     func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData {
+        throw error
+    }
+
+    func fetchViewerWithOrganizations(token: String) async throws -> GitHubSyncService.ViewerWithOrganizationsData {
         throw error
     }
 

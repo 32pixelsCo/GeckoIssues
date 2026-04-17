@@ -90,7 +90,9 @@ final class SyncStore {
                 let label = repoIds == nil ? "full" : "selective (\(repoIds!.count) repos)"
                 logger.info("Starting \(label) sync")
 
-                let viewer = try await syncService.fetchViewer(token: token)
+                let viewerData = try await syncService.fetchViewerWithOrganizations(token: token)
+                let viewer = viewerData.viewer
+                let orgAccounts = viewerData.organizations
                 try Task.checkCancellation()
 
                 // Step 2: Fetch all repositories
@@ -135,8 +137,8 @@ final class SyncStore {
 
                 logger.info("Total repositories: \(repos.count)")
 
-                // Step 3: Save account + repos
-                try await persistAccountsAndRepos(viewer: viewer, repos: repos)
+                // Step 3: Save account + repos (including all org memberships)
+                try await persistAccountsAndRepos(viewer: viewer, orgAccounts: orgAccounts, repos: repos)
 
                 // Step 4: Fetch and persist issues — filtered to selected repos if provided
                 let reposToSync = repoIds.map { ids in repos.filter { ids.contains($0.databaseId) } } ?? repos
@@ -189,6 +191,7 @@ final class SyncStore {
 
     private func persistAccountsAndRepos(
         viewer: GitHubSyncService.ViewerData,
+        orgAccounts: [GitHubSyncService.OrganizationData],
         repos: [GitHubSyncService.RepositoryData]
     ) async throws {
         try await database.dbQueue.write { db in
@@ -202,8 +205,21 @@ final class SyncStore {
             )
             try account.save(db)
 
-            // Collect unique owners and upsert
+            // Upsert all org memberships so AccountPicker shows every org
             var seenOwners: Set<Int64> = [viewer.databaseId]
+            for org in orgAccounts where !seenOwners.contains(org.databaseId) {
+                seenOwners.insert(org.databaseId)
+                var orgAccount = Account(
+                    id: org.databaseId,
+                    login: org.login,
+                    avatarURL: org.avatarUrl,
+                    type: .organization,
+                    syncedAt: nil
+                )
+                try orgAccount.save(db)
+            }
+
+            // Collect unique repo owners and upsert
             for repo in repos {
                 let ownerId = repo.owner.databaseId
                 guard !seenOwners.contains(ownerId) else { continue }
