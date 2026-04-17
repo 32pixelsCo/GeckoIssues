@@ -80,6 +80,7 @@ struct OnboardingWizardSheet: View {
                 SyncingStepView(
                     syncStore: syncStore,
                     authStore: authStore,
+                    selectedRepoIds: selectedRepoIds,
                     onDone: { dismiss() }
                 )
             }

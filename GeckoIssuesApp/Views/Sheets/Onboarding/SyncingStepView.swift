@@ -4,6 +4,7 @@ import SwiftUI
 struct SyncingStepView: View {
     var syncStore: SyncStore
     var authStore: AuthStore
+    var selectedRepoIds: Set<Int64>
     var onDone: () -> Void
 
     var body: some View {
@@ -40,7 +41,11 @@ struct SyncingStepView: View {
         }
         .task {
             guard let token = authStore.accessToken else { return }
-            syncStore.startFullSync(token: token)
+            if selectedRepoIds.isEmpty {
+                syncStore.startFullSync(token: token)
+            } else {
+                syncStore.startSyncForRepos(repoIds: selectedRepoIds, token: token)
+            }
         }
     }
 
