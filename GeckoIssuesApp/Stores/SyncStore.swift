@@ -61,8 +61,9 @@ final class SyncStore {
 
     /// Start a sync limited to the specified repository IDs.
     ///
-    /// All repositories are fetched and persisted so the sidebar is populated,
-    /// but issues are only fetched for repos whose `databaseId` is in `repoIds`.
+    /// All repos and org memberships are persisted to the DB, but issues are only
+    /// fetched for repos in `repoIds`. The sidebar filters to repos with `syncedAt != nil`,
+    /// so only the selected repos appear there.
     func startSyncForRepos(repoIds: Set<Int64>, token: String) {
         startSync(token: token, repoIds: repoIds)
     }
@@ -137,7 +138,7 @@ final class SyncStore {
 
                 logger.info("Total repositories: \(repos.count)")
 
-                // Step 3: Save account + repos (including all org memberships)
+                // Step 3: Save accounts + all repos (sidebar filters to syncedAt != nil)
                 try await persistAccountsAndRepos(viewer: viewer, orgAccounts: orgAccounts, repos: repos)
 
                 // Step 4: Fetch and persist issues — filtered to selected repos if provided

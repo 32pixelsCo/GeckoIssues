@@ -115,6 +115,7 @@ struct RepositoryListView: View {
             repositories = try await database.dbQueue.read { db in
                 try Repository
                     .filter(Column("accountId") == account.id)
+                    .filter(Column("syncedAt") != nil)
                     .order(Column("name").collating(.localizedCaseInsensitiveCompare))
                     .fetchAll(db)
             }
