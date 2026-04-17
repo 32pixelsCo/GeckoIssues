@@ -41,11 +41,7 @@ struct SyncingStepView: View {
         }
         .task {
             guard let token = authStore.accessToken else { return }
-            if selectedRepoIds.isEmpty {
-                syncStore.startFullSync(token: token)
-            } else {
-                syncStore.startSyncForRepos(repoIds: selectedRepoIds, token: token)
-            }
+            syncStore.startSyncForRepos(repoIds: selectedRepoIds, token: token)
         }
     }
 
