@@ -9,11 +9,12 @@ final class AppStore {
     var selectedRepository: Repository?
     var selectedIssue: Issue?
 
-    /// Load accounts from the database, sorted with user accounts first, then orgs.
+    /// Load accounts that own at least one tracked repository, sorted with user accounts first, then orgs.
     func loadAccounts(from database: AppDatabase) async {
         do {
             accounts = try await database.dbQueue.read { db in
                 try Account
+                    .joining(required: Account.repositories.filter(Column("tracked") == true))
                     .order(
                         // Users first, then organizations
                         Column("type").desc,
