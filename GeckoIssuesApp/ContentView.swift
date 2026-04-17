@@ -34,6 +34,22 @@ struct ContentView: View {
                 )
             }
         }
+        .sheet(item: Bindable(navigationStore).activeSheet) { route in
+            switch route {
+            case .onboarding:
+                OnboardingWizardSheet(
+                    authStore: authStore,
+                    syncStore: syncStore,
+                    appStore: appStore,
+                    database: database
+                )
+            }
+        }
+        .task {
+            if !authStore.isAuthenticated {
+                navigationStore.activeSheet = .onboarding
+            }
+        }
     }
 
     // MARK: - Auth & Sync
@@ -46,7 +62,7 @@ struct ContentView: View {
                 Text("Not signed in")
                     .foregroundStyle(.secondary)
                 Button("Sign In with GitHub") {
-                    authStore.signIn()
+                    navigationStore.activeSheet = .onboarding
                 }
 
             case .authorizing(let userCode, _):
