@@ -44,20 +44,22 @@ struct RepositoryListView: View {
                         )
                     )
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 12))
-                        TextField("Filter repos...", text: $filterText)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 13))
+                    if repositories.count > 10 {
+                        HStack(spacing: 4) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 12))
+                            TextField("Filter repos...", text: $filterText)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 13))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
+                        )
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.5))
-                    )
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
