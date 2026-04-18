@@ -15,17 +15,13 @@ struct ConnectGitHubStepView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
 
-            Text("Connect GitHub")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
 
             Spacer().frame(height: 32)
 
             VStack(alignment: .leading, spacing: 0) {
                 AuthStepRow(
                     number: 1,
-                    title: "Authenticate",
+                    title: "Connect to Github",
                     state: step1State,
                     isLast: false
                 ) {
@@ -98,20 +94,16 @@ struct ConnectGitHubStepView: View {
     @ViewBuilder
     private var authenticateContent: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Button {
+            Text("Open your browser, sign in, then return here to get your code.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            
+            Button("Sign in with GitHub"){
                 authStore.signIn()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.shield")
-                    Text("Sign in with GitHub")
-                }
             }
             .controlSize(.large)
             .accessibilityLabel("Sign in with GitHub")
 
-            Text("Opens your browser to authorize Gecko Issues.")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
 
             if let error = authStore.errorMessage {
                 Text(error)
@@ -123,21 +115,20 @@ struct ConnectGitHubStepView: View {
 
     @ViewBuilder
     private var enterCodeContent: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("After signing in, enter this code when prompted:")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
                 if case .authorizing(let userCode, _) = authStore.state {
                     Text(userCode)
                         .font(.system(size: 22, weight: .bold, design: .monospaced))
                         .textSelection(.enabled)
                         .accessibilityLabel("Authorization code: \(userCode)")
-                    Button {
+                    Button("Copy") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(userCode, forType: .string)
-                    } label: {
-                        Image(systemName: "doc.on.doc")
-                            .font(.system(size: 14))
                     }
-                    .buttonStyle(.borderless)
                     .accessibilityLabel("Copy code to clipboard")
                 } else {
                     Text("XXXX-XXXX")
@@ -145,9 +136,6 @@ struct ConnectGitHubStepView: View {
                         .foregroundStyle(.tertiary)
                 }
             }
-            Text("Enter this code at github.com/login/device")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
         }
     }
 }
@@ -226,12 +214,12 @@ private struct AuthStepRow<Content: View>: View {
         case .completed:
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 24))
-                .foregroundStyle(.green)
+                .foregroundStyle(Color.accentColor)
         }
     }
 
     private var connectorColor: Color {
-        state == .completed ? .green.opacity(0.35) : Color.secondary.opacity(0.2)
+        state == .completed ? .accentColor.opacity(0.35) : Color.secondary.opacity(0.2)
     }
 }
 
