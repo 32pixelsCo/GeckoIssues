@@ -53,6 +53,8 @@ struct ConnectGitHubStepView: View {
             .padding(.leading, 40)
             .frame(maxWidth: .infinity, alignment: .leading)
 
+            Spacer()
+
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -103,7 +105,6 @@ struct ConnectGitHubStepView: View {
                     Image(systemName: "lock.shield")
                     Text("Sign in with GitHub")
                 }
-                .frame(maxWidth: .infinity)
             }
             .controlSize(.large)
             .accessibilityLabel("Sign in with GitHub")
