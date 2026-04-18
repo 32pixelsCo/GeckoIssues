@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 /// Step 1 of the onboarding wizard: connect to GitHub via OAuth Device Flow.
 ///
@@ -125,11 +124,7 @@ struct ConnectGitHubStepView: View {
                         .font(.system(size: 22, weight: .bold, design: .monospaced))
                         .textSelection(.enabled)
                         .accessibilityLabel("Authorization code: \(userCode)")
-                    Button("Copy") {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(userCode, forType: .string)
-                    }
-                    .accessibilityLabel("Copy code to clipboard")
+                    CopyButton(value: userCode)
                 } else {
                     Text("XXXX-XXXX")
                         .font(.system(size: 22, weight: .bold, design: .monospaced))
