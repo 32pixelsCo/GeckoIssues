@@ -102,6 +102,7 @@ struct ConnectGitHubStepView: View {
             }
             .controlSize(.large)
             .accessibilityLabel("Sign in with GitHub")
+            .disabled(step1State == .completed)
 
 
             if let error = authStore.errorMessage {
