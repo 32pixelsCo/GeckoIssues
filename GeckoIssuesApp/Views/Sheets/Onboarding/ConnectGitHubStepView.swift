@@ -173,11 +173,13 @@ private struct AuthStepRow<Content: View>: View {
                 if !isLast {
                     Rectangle()
                         .fill(connectorColor)
-                        .frame(width: 2, height: 24)
-                        .padding(.vertical, 2)
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                        .padding(.vertical, 4)
                 }
             }
             .frame(width: 24)
+            .frame(maxHeight: .infinity, alignment: .top)
 
             // Right column: title + optional content
             VStack(alignment: .leading, spacing: 8) {
