@@ -30,3 +30,10 @@ struct CopyButton: View {
         .accessibilityLabel(copied ? "Copied" : "Copy to clipboard")
     }
 }
+
+#Preview {
+    HStack(spacing: 16) {
+        CopyButton(value: "ABCD-1234")
+    }
+    .padding()
+}
