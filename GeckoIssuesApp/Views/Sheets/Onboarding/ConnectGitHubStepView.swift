@@ -50,9 +50,8 @@ struct ConnectGitHubStepView: View {
                     EmptyView()
                 }
             }
-            .padding(.horizontal, 40)
-
-            Spacer()
+            .padding(.leading, 40)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack {
                 Spacer()
@@ -173,9 +172,8 @@ private struct AuthStepRow<Content: View>: View {
                 if !isLast {
                     Rectangle()
                         .fill(connectorColor)
-                        .frame(width: 2)
-                        .frame(maxHeight: .infinity)
-                        .padding(.vertical, 4)
+                        .frame(width: 2, height: 24)
+                        .padding(.vertical, 2)
                 }
             }
             .frame(width: 24)
