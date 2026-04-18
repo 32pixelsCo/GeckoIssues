@@ -101,12 +101,21 @@ struct ConnectGitHubStepView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             
-            Button("Sign in with GitHub"){
-                authStore.signIn()
+            HStack(spacing: 8) {
+                Button("Sign in with GitHub") {
+                    authStore.signIn()
+                }
+                .controlSize(.large)
+                .accessibilityLabel("Sign in with GitHub")
+                .disabled(step1State == .completed)
+
+                if step1State == .completed {
+                    Button("Restart") {
+                        authStore.signOut()
+                    }
+                    .controlSize(.large)
+                }
             }
-            .controlSize(.large)
-            .accessibilityLabel("Sign in with GitHub")
-            .disabled(step1State == .completed)
 
 
             if let error = authStore.errorMessage {
