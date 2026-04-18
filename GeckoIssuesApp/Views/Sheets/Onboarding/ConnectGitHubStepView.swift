@@ -123,9 +123,9 @@ struct ConnectGitHubStepView: View {
 
     @ViewBuilder
     private var enterCodeContent: some View {
-        if case .authorizing(let userCode, _) = authStore.state {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                if case .authorizing(let userCode, _) = authStore.state {
                     Text(userCode)
                         .font(.system(size: 22, weight: .bold, design: .monospaced))
                         .textSelection(.enabled)
@@ -139,11 +139,15 @@ struct ConnectGitHubStepView: View {
                     }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Copy code to clipboard")
+                } else {
+                    Text("XXXX-XXXX")
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.tertiary)
                 }
-                Text("Enter this code at github.com/login/device")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
             }
+            Text("Enter this code at github.com/login/device")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -193,9 +197,7 @@ private struct AuthStepRow<Content: View>: View {
                             .scaleEffect(0.75)
                     }
                 }
-                if state == .active {
-                    content()
-                }
+                content()
             }
             .padding(.top, 3)
             .padding(.bottom, isLast ? 0 : 16)
