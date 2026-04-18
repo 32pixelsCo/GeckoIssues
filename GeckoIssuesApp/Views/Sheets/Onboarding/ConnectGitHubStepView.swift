@@ -42,7 +42,11 @@ struct ConnectGitHubStepView: View {
                     state: step3State,
                     isLast: true
                 ) {
-                    EmptyView()
+                    if case .authenticated(let username) = authStore.state {
+                        Text("Successfully connected as \(username).")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
             .padding(.leading, 40)
