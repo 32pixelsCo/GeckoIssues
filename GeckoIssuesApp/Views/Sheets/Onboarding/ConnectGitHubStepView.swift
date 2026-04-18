@@ -232,3 +232,32 @@ private struct AuthStepRow<Content: View>: View {
         state == .completed ? .green.opacity(0.35) : Color.secondary.opacity(0.2)
     }
 }
+
+// MARK: - Previews
+
+#Preview("Unauthenticated") {
+    ConnectGitHubStepView(
+        authStore: AuthStore(previewState: .unauthenticated),
+        onCancel: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Authorizing") {
+    ConnectGitHubStepView(
+        authStore: AuthStore(previewState: .authorizing(userCode: "ABCD-1234", verificationURL: "https://github.com/login/device")),
+        onCancel: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Authenticated") {
+    ConnectGitHubStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        onCancel: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
+}
