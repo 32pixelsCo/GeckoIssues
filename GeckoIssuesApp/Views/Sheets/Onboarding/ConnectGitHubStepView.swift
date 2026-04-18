@@ -1,6 +1,9 @@
 import SwiftUI
+import AppKit
 
 /// Step 1 of the onboarding wizard: connect to GitHub via OAuth Device Flow.
+///
+/// Shows a three-step vertical progress list: Authenticate → Enter code → Authorize device.
 struct ConnectGitHubStepView: View {
     var authStore: AuthStore
     var onCancel: () -> Void
@@ -17,10 +20,37 @@ struct ConnectGitHubStepView: View {
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
 
-            Spacer().frame(height: 24)
+            Spacer().frame(height: 32)
 
-            authContent
-                .padding(.horizontal, 40)
+            VStack(alignment: .leading, spacing: 0) {
+                AuthStepRow(
+                    number: 1,
+                    title: "Authenticate",
+                    state: step1State,
+                    isLast: false
+                ) {
+                    authenticateContent
+                }
+
+                AuthStepRow(
+                    number: 2,
+                    title: "Enter code",
+                    state: step2State,
+                    isLast: false
+                ) {
+                    enterCodeContent
+                }
+
+                AuthStepRow(
+                    number: 3,
+                    title: "Authorize device",
+                    state: step3State,
+                    isLast: true
+                ) {
+                    EmptyView()
+                }
+            }
+            .padding(.horizontal, 40)
 
             Spacer()
 
@@ -37,26 +67,36 @@ struct ConnectGitHubStepView: View {
         }
     }
 
-    // MARK: - Auth Content
+    // MARK: - Step States
 
-    @ViewBuilder
-    private var authContent: some View {
+    private var step1State: AuthStepState {
         switch authStore.state {
-        case .unauthenticated:
-            unauthenticatedView
-
-        case .authorizing(let userCode, _):
-            authorizingView(userCode: userCode)
-
-        case .authenticated(let username):
-            connectedView(username: username)
+        case .unauthenticated: .active
+        case .authorizing, .authenticated: .completed
         }
     }
 
-    // MARK: - Unauthenticated
+    private var step2State: AuthStepState {
+        switch authStore.state {
+        case .unauthenticated: .upcoming
+        case .authorizing: .active
+        case .authenticated: .completed
+        }
+    }
 
-    private var unauthenticatedView: some View {
-        VStack(spacing: 16) {
+    private var step3State: AuthStepState {
+        switch authStore.state {
+        case .unauthenticated: .upcoming
+        case .authorizing: .waiting
+        case .authenticated: .completed
+        }
+    }
+
+    // MARK: - Step Content
+
+    @ViewBuilder
+    private var authenticateContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
             Button {
                 authStore.signIn()
             } label: {
@@ -72,91 +112,122 @@ struct ConnectGitHubStepView: View {
             Text("Opens your browser to authorize Gecko Issues.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
 
             if let error = authStore.errorMessage {
-                errorView(error)
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
             }
         }
     }
 
-    // MARK: - Authorizing
-
-    private func authorizingView(userCode: String) -> some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .controlSize(.regular)
-
-            Text("Waiting for authorization...")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-
-            VStack(spacing: 8) {
-                Text("Enter this code on GitHub:")
+    @ViewBuilder
+    private var enterCodeContent: some View {
+        if case .authorizing(let userCode, _) = authStore.state {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    Text(userCode)
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Authorization code: \(userCode)")
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(userCode, forType: .string)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 14))
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Copy code to clipboard")
+                }
+                Text("Enter this code at github.com/login/device")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                Text(userCode)
-                    .font(.system(size: 22, weight: .bold, design: .monospaced))
-                    .textSelection(.enabled)
-                    .accessibilityLabel("Authorization code: \(userCode)")
             }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.quaternary)
-            )
+        }
+    }
+}
 
-            Button("Cancel Sign In") {
-                authStore.cancelSignIn()
+// MARK: - Step Row
+
+enum AuthStepState {
+    case upcoming   // hollow circle, dimmed title
+    case active     // filled accent circle, normal title, content shown
+    case waiting    // hollow circle + spinner inline, dimmed title
+    case completed  // green checkmark
+}
+
+private struct AuthStepRow<Content: View>: View {
+    let number: Int
+    let title: String
+    let state: AuthStepState
+    let isLast: Bool
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            // Left column: indicator + connector line
+            VStack(spacing: 0) {
+                indicator
+                    .frame(width: 24, height: 24)
+                if !isLast {
+                    Rectangle()
+                        .fill(connectorColor)
+                        .frame(width: 2)
+                        .frame(maxHeight: .infinity)
+                        .padding(.vertical, 4)
+                }
             }
-            .buttonStyle(.borderless)
-            .accessibilityLabel("Cancel sign in")
+            .frame(width: 24)
+
+            // Right column: title + optional content
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 13, weight: state == .upcoming ? .regular : .medium))
+                        .foregroundStyle(state == .upcoming ? Color.secondary : Color.primary)
+                    if state == .waiting {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .scaleEffect(0.75)
+                    }
+                }
+                if state == .active {
+                    content()
+                }
+            }
+            .padding(.top, 3)
+            .padding(.bottom, isLast ? 0 : 16)
         }
     }
 
-    // MARK: - Connected
-
-    private func connectedView(username: String) -> some View {
-        VStack(spacing: 16) {
+    @ViewBuilder
+    private var indicator: some View {
+        switch state {
+        case .upcoming, .waiting:
+            ZStack {
+                Circle()
+                    .stroke(Color.secondary.opacity(0.35), lineWidth: 1.5)
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.tertiary)
+            }
+        case .active:
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor)
+                Text("\(number)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+        case .completed:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 40))
+                .font(.system(size: 24))
                 .foregroundStyle(.green)
-
-            Text("Connected as @\(username)")
-                .font(.system(size: 14, weight: .medium))
         }
-        .frame(maxWidth: .infinity)
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.green.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(.green.opacity(0.2), lineWidth: 1)
-                )
-        )
     }
 
-    // MARK: - Error
-
-    private func errorView(_ error: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            Text(error)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.red.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(.red.opacity(0.2), lineWidth: 1)
-                )
-        )
+    private var connectorColor: Color {
+        state == .completed ? .green.opacity(0.35) : Color.secondary.opacity(0.2)
     }
 }
