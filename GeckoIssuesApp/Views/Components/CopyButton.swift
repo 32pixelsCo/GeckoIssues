@@ -21,11 +21,12 @@ struct CopyButton: View {
                 }
             }
         } label: {
-            if copied {
-                Image(systemName: "checkmark")
-            } else {
-                Text("Copy")
-            }
+            Text("Copy")
+                .opacity(copied ? 0 : 1)
+                .overlay {
+                    Image(systemName: "checkmark")
+                        .opacity(copied ? 1 : 0)
+                }
         }
         .accessibilityLabel(copied ? "Copied" : "Copy to clipboard")
     }
