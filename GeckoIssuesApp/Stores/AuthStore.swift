@@ -46,6 +46,16 @@ final class AuthStore {
         restoreSession()
     }
 
+    /// Preview/testing initializer — sets an explicit initial state without Keychain access.
+    init(previewState: AuthState) {
+        self.deviceFlowService = DeviceFlowService()
+        self.keychainService = KeychainService()
+        self.state = previewState
+        if case .authenticated = previewState {
+            self.accessToken = "preview_token"
+        }
+    }
+
     // MARK: - Session Restoration
 
     /// Restore a previously authenticated session from the Keychain.

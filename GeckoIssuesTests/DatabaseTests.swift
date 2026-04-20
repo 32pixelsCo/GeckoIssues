@@ -20,8 +20,8 @@ struct DatabaseTests {
         Account(id: id, login: login, avatarURL: "https://avatars.githubusercontent.com/u/\(id)", type: .user, syncedAt: nil)
     }
 
-    private func makeRepository(id: Int64 = 100, accountId: Int64 = 1) -> Repository {
-        Repository(id: id, accountId: accountId, name: "hello-world", nameWithOwner: "octocat/hello-world", isPrivate: false, description: "A test repo", url: "https://github.com/octocat/hello-world", syncedAt: nil)
+    private func makeRepository(id: Int64 = 100, accountId: Int64 = 1, tracked: Bool = false) -> Repository {
+        Repository(id: id, accountId: accountId, name: "hello-world", nameWithOwner: "octocat/hello-world", isPrivate: false, description: "A test repo", url: "https://github.com/octocat/hello-world", syncedAt: nil, tracked: tracked)
     }
 
     private func makeMilestone(id: Int64 = 200, repositoryId: Int64 = 100) -> Milestone {

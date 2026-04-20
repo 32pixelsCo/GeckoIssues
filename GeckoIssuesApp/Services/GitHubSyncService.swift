@@ -6,6 +6,7 @@ import os
 /// Abstraction over GitHub data fetching for testability.
 protocol SyncServiceProtocol: Sendable {
     func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData
+    func fetchViewerWithOrganizations(token: String) async throws -> GitHubSyncService.ViewerWithOrganizationsData
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData]
@@ -121,6 +122,22 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
         return nodes.map(mapIssueNode)
     }
 
+    // MARK: - Fetch Viewer + Organizations
+
+    func fetchViewerWithOrganizations(token: String) async throws -> ViewerWithOrganizationsData {
+        let response: ViewerWithOrgsResponse = try await client.execute(
+            query: Queries.viewerWithOrgs,
+            token: token
+        )
+        let v = response.viewer
+        return ViewerWithOrganizationsData(
+            viewer: ViewerData(databaseId: v.databaseId, login: v.login, avatarUrl: v.avatarUrl),
+            organizations: v.organizations.nodes.map { org in
+                OrganizationData(databaseId: org.databaseId, login: org.login, avatarUrl: org.avatarUrl)
+            }
+        )
+    }
+
     private func mapIssueNode(_ node: IssueNode) -> IssueData {
         IssueData(
             databaseId: node.databaseId,
@@ -224,6 +241,17 @@ extension GitHubSyncService {
         let updatedAt: String
     }
 
+    struct OrganizationData: Sendable {
+        let databaseId: Int64
+        let login: String
+        let avatarUrl: String?
+    }
+
+    struct ViewerWithOrganizationsData: Sendable {
+        let viewer: ViewerData
+        let organizations: [OrganizationData]
+    }
+
     struct IssueData: Sendable {
         let databaseId: Int64
         let number: Int
@@ -287,6 +315,27 @@ private struct OwnerNode: Decodable, Sendable {
         case databaseId, login, avatarUrl
         case typeName = "__typename"
     }
+}
+
+private struct ViewerWithOrgsResponse: Decodable, Sendable {
+    let viewer: ViewerWithOrgsNode
+}
+
+private struct ViewerWithOrgsNode: Decodable, Sendable {
+    let databaseId: Int64
+    let login: String
+    let avatarUrl: String?
+    let organizations: OrgMemberConnection
+}
+
+private struct OrgMemberConnection: Decodable, Sendable {
+    let nodes: [OrgMemberNode]
+}
+
+private struct OrgMemberNode: Decodable, Sendable {
+    let databaseId: Int64
+    let login: String
+    let avatarUrl: String?
 }
 
 private struct OrgReposResponse: Decodable, Sendable {
@@ -376,6 +425,23 @@ private struct CommentNode: Decodable, Sendable {
 // MARK: - GraphQL Queries
 
 private enum Queries {
+
+    static let viewerWithOrgs = """
+    query {
+      viewer {
+        databaseId
+        login
+        avatarUrl
+        organizations(first: 100) {
+          nodes {
+            databaseId
+            login
+            avatarUrl
+          }
+        }
+      }
+    }
+    """
 
     static let viewer = """
     query {

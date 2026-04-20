@@ -40,6 +40,7 @@ targets:
         PRODUCT_MODULE_NAME: GeckoIssues
         GENERATE_INFOPLIST_FILE: true
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     scheme:
       testTargets:
         - GeckoIssuesTests

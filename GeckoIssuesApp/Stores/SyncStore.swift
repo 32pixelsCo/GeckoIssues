@@ -52,10 +52,38 @@ final class SyncStore {
         self.syncService = syncService
     }
 
-    // MARK: - Full Sync
+    /// Preview initializer — sets an explicit initial state without a real database or service.
+    init(previewState: SyncState) {
+        self.database = try! AppDatabase.inMemory()
+        self.syncService = GitHubSyncService()
+        self.state = previewState
+    }
+
+    // MARK: - Sync
 
     /// Start a full sync of all repositories and issues from GitHub.
     func startFullSync(token: String) {
+        startSync(token: token, repoIds: nil)
+    }
+
+    /// Start a sync limited to the specified repository IDs.
+    ///
+    /// All repos and org memberships are persisted to the DB, but issues are only
+    /// fetched for repos in `repoIds`. The sidebar filters to repos with `syncedAt != nil`,
+    /// so only the selected repos appear there.
+    func startSyncForRepos(repoIds: Set<Int64>, token: String) {
+        startSync(token: token, repoIds: repoIds)
+    }
+
+    /// Cancel an in-progress sync.
+    func cancelSync() {
+        syncTask?.cancel()
+        syncTask = nil
+    }
+
+    // MARK: - Private Sync
+
+    private func startSync(token: String, repoIds: Set<Int64>?) {
         if case .syncing = state { return }
 
         errorMessage = nil
@@ -67,9 +95,12 @@ final class SyncStore {
                     repositoriesSynced: 0,
                     repositoriesTotal: 0
                 ))
-                logger.info("Starting full sync")
+                let label = repoIds == nil ? "full" : "selective (\(repoIds!.count) repos)"
+                logger.info("Starting \(label) sync")
 
-                let viewer = try await syncService.fetchViewer(token: token)
+                let viewerData = try await syncService.fetchViewerWithOrganizations(token: token)
+                let viewer = viewerData.viewer
+                let orgAccounts = viewerData.organizations
                 try Task.checkCancellation()
 
                 // Step 2: Fetch all repositories
@@ -114,17 +145,18 @@ final class SyncStore {
 
                 logger.info("Total repositories: \(repos.count)")
 
-                // Step 3: Save account + repos
-                try await persistAccountsAndRepos(viewer: viewer, repos: repos)
+                // Step 3: Save accounts + all repos; mark selected repos as tracked
+                try await persistAccountsAndRepos(viewer: viewer, orgAccounts: orgAccounts, repos: repos, trackedRepoIds: repoIds)
 
-                // Step 4: For each repo, fetch and persist issues
-                for (index, repo) in repos.enumerated() {
+                // Step 4: Fetch and persist issues — filtered to selected repos if provided
+                let reposToSync = repoIds.map { ids in repos.filter { ids.contains($0.databaseId) } } ?? repos
+                for (index, repo) in reposToSync.enumerated() {
                     try Task.checkCancellation()
 
                     state = .syncing(SyncProgress(
                         phase: .syncingRepository(repo.nameWithOwner),
                         repositoriesSynced: index,
-                        repositoriesTotal: repos.count
+                        repositoriesTotal: reposToSync.count
                     ))
 
                     let parts = repo.nameWithOwner.split(separator: "/", maxSplits: 1)
@@ -143,7 +175,7 @@ final class SyncStore {
 
                 let completedAt = Date()
                 state = .completed(completedAt)
-                logger.info("Full sync completed")
+                logger.info("Sync completed")
 
             } catch is CancellationError {
                 state = .idle
@@ -163,17 +195,13 @@ final class SyncStore {
         }
     }
 
-    /// Cancel an in-progress sync.
-    func cancelSync() {
-        syncTask?.cancel()
-        syncTask = nil
-    }
-
     // MARK: - Persistence
 
     private func persistAccountsAndRepos(
         viewer: GitHubSyncService.ViewerData,
-        repos: [GitHubSyncService.RepositoryData]
+        orgAccounts: [GitHubSyncService.OrganizationData],
+        repos: [GitHubSyncService.RepositoryData],
+        trackedRepoIds: Set<Int64>?
     ) async throws {
         try await database.dbQueue.write { db in
             // Upsert viewer account
@@ -186,8 +214,21 @@ final class SyncStore {
             )
             try account.save(db)
 
-            // Collect unique owners and upsert
+            // Upsert all org memberships so AccountPicker shows every org
             var seenOwners: Set<Int64> = [viewer.databaseId]
+            for org in orgAccounts where !seenOwners.contains(org.databaseId) {
+                seenOwners.insert(org.databaseId)
+                var orgAccount = Account(
+                    id: org.databaseId,
+                    login: org.login,
+                    avatarURL: org.avatarUrl,
+                    type: .organization,
+                    syncedAt: nil
+                )
+                try orgAccount.save(db)
+            }
+
+            // Collect unique repo owners and upsert
             for repo in repos {
                 let ownerId = repo.owner.databaseId
                 guard !seenOwners.contains(ownerId) else { continue }
@@ -203,8 +244,10 @@ final class SyncStore {
                 try ownerAccount.save(db)
             }
 
-            // Upsert repositories
+            // Upsert repositories; preserve existing tracked flag unless explicitly overridden
             for repo in repos {
+                let shouldTrack = trackedRepoIds.map { $0.contains(repo.databaseId) }
+                let existing = try Repository.fetchOne(db, key: repo.databaseId)
                 var repository = Repository(
                     id: repo.databaseId,
                     accountId: repo.owner.databaseId,
@@ -213,7 +256,8 @@ final class SyncStore {
                     isPrivate: repo.isPrivate,
                     description: repo.description,
                     url: repo.url,
-                    syncedAt: nil
+                    syncedAt: existing?.syncedAt,
+                    tracked: shouldTrack ?? existing?.tracked ?? false
                 )
                 try repository.save(db)
             }
