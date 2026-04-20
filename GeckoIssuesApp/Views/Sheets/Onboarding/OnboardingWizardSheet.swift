@@ -67,6 +67,7 @@ struct OnboardingWizardSheet: View {
                     syncStore: syncStore,
                     authStore: authStore,
                     selectedRepoIds: selectedRepoIds,
+                    onBack: { step = .selectRepos },
                     onDone: { dismiss() }
                 )
             }

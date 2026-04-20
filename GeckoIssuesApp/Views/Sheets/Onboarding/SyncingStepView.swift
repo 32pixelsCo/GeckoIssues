@@ -5,6 +5,7 @@ struct SyncingStepView: View {
     var syncStore: SyncStore
     var authStore: AuthStore
     var selectedRepoIds: Set<Int64>
+    var onBack: () -> Void
     var onDone: () -> Void
 
     var body: some View {
@@ -27,6 +28,12 @@ struct SyncingStepView: View {
 
             HStack {
                 Spacer()
+                Button("Back") {
+                    syncStore.cancelSync()
+                    onBack()
+                }
+                .keyboardShortcut(.cancelAction)
+                .disabled(isDone)
                 Button {
                     onDone()
                 } label: {
@@ -149,6 +156,7 @@ struct SyncingStepView: View {
         ))),
         authStore: AuthStore(previewState: .authenticated(username: "octocat")),
         selectedRepoIds: [1, 2, 3],
+        onBack: {},
         onDone: {}
     )
     .frame(width: 520, height: 460)
@@ -159,6 +167,7 @@ struct SyncingStepView: View {
         syncStore: SyncStore(previewState: .completed(Date())),
         authStore: AuthStore(previewState: .authenticated(username: "octocat")),
         selectedRepoIds: [1],
+        onBack: {},
         onDone: {}
     )
     .frame(width: 520, height: 460)
@@ -169,6 +178,7 @@ struct SyncingStepView: View {
         syncStore: SyncStore(previewState: .error("Could not connect to GitHub. Check your internet connection.")),
         authStore: AuthStore(previewState: .authenticated(username: "octocat")),
         selectedRepoIds: [1],
+        onBack: {},
         onDone: {}
     )
     .frame(width: 520, height: 460)
