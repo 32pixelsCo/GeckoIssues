@@ -9,6 +9,7 @@ struct ConnectGitHubStepView: View {
     var onContinue: () -> Void
 
     @FocusState private var continueButtonFocused: Bool
+    @FocusState private var signInButtonFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -116,10 +117,12 @@ struct ConnectGitHubStepView: View {
                 .controlSize(.large)
                 .accessibilityLabel("Sign in with GitHub")
                 .disabled(step1State == .completed)
+                .focused($signInButtonFocused)
 
                 if step1State == .completed {
                     Button {
                         authStore.signOut()
+                        signInButtonFocused = true
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.circlepath")
