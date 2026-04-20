@@ -8,6 +8,8 @@ struct ConnectGitHubStepView: View {
     var onCancel: () -> Void
     var onContinue: () -> Void
 
+    @FocusState private var continueButtonFocused: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             Text("Get Started")
@@ -61,9 +63,15 @@ struct ConnectGitHubStepView: View {
                 Button("Continue", action: onContinue)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!authStore.isAuthenticated)
+                    .focused($continueButtonFocused)
             }
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
+        }
+        .onChange(of: authStore.isAuthenticated) { _, isAuthenticated in
+            if isAuthenticated {
+                continueButtonFocused = true
+            }
         }
     }
 
@@ -101,7 +109,7 @@ struct ConnectGitHubStepView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             
-            HStack(spacing: 8) {
+            HStack(spacing: 12) {
                 Button("Sign in with GitHub") {
                     authStore.signIn()
                 }
@@ -113,7 +121,7 @@ struct ConnectGitHubStepView: View {
                     Button("Restart") {
                         authStore.signOut()
                     }
-                    .controlSize(.large)
+                    .buttonStyle(.borderless)
                 }
             }
 
