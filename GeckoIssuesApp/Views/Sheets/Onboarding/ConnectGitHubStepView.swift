@@ -121,7 +121,10 @@ struct ConnectGitHubStepView: View {
                     Button {
                         authStore.signOut()
                     } label: {
-                        Image(systemName: "arrow.circlepath")
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.circlepath")
+                            Text("Restart")
+                        }
                     }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Restart sign-in")
