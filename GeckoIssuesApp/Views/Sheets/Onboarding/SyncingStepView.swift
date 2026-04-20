@@ -9,7 +9,7 @@ struct SyncingStepView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Get Started")
+            Text("Initial setup")
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
 
@@ -40,7 +40,8 @@ struct SyncingStepView: View {
             .padding(.bottom, 24)
         }
         .task {
-            guard let token = authStore.accessToken else { return }
+            guard case .idle = syncStore.state,
+                  let token = authStore.accessToken else { return }
             syncStore.startSyncForRepos(repoIds: selectedRepoIds, token: token)
         }
     }
@@ -85,7 +86,6 @@ struct SyncingStepView: View {
 
                 Text(progressLabel(progress))
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
 
@@ -106,7 +106,6 @@ struct SyncingStepView: View {
                     .foregroundStyle(.red)
                 Text(message)
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                 Button("Retry") {
                     guard let token = authStore.accessToken else { return }
