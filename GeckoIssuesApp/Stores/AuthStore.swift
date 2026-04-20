@@ -51,6 +51,9 @@ final class AuthStore {
         self.deviceFlowService = DeviceFlowService()
         self.keychainService = KeychainService()
         self.state = previewState
+        if case .authenticated = previewState {
+            self.accessToken = "preview_token"
+        }
     }
 
     // MARK: - Session Restoration

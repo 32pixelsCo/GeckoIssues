@@ -138,3 +138,39 @@ struct SyncingStepView: View {
         }
     }
 }
+
+// MARK: - Previews
+
+#Preview("Syncing") {
+    SyncingStepView(
+        syncStore: SyncStore(previewState: .syncing(SyncStore.SyncProgress(
+            phase: .syncingRepository("gecko-issues"),
+            repositoriesSynced: 1,
+            repositoriesTotal: 3
+        ))),
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        selectedRepoIds: [1, 2, 3],
+        onDone: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Completed") {
+    SyncingStepView(
+        syncStore: SyncStore(previewState: .completed(Date())),
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        selectedRepoIds: [1],
+        onDone: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Error") {
+    SyncingStepView(
+        syncStore: SyncStore(previewState: .error("Could not connect to GitHub. Check your internet connection.")),
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        selectedRepoIds: [1],
+        onDone: {}
+    )
+    .frame(width: 520, height: 460)
+}

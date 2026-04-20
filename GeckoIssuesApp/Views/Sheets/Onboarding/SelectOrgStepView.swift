@@ -3,7 +3,7 @@ import SwiftUI
 /// Step 2 of the onboarding wizard: select an organization or personal account to sync.
 struct SelectOrgStepView: View {
     var authStore: AuthStore
-    var syncService: GitHubSyncService
+    var syncService: any SyncServiceProtocol
     @Binding var selectedOrg: OrgOption?
     var onBack: () -> Void
     var onContinue: () -> Void
@@ -127,6 +127,30 @@ struct SelectOrgStepView: View {
         }
         isLoading = false
     }
+}
+
+// MARK: - Previews
+
+#Preview("Loading") {
+    SelectOrgStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        syncService: PreviewSyncService(),
+        selectedOrg: .constant(nil),
+        onBack: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Loaded") {
+    SelectOrgStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        syncService: PreviewSyncService(orgs: [.preview]),
+        selectedOrg: .constant(OrgOption(id: 1, login: "octocat", avatarURL: nil, isPersonalAccount: true)),
+        onBack: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
 }
 
 // MARK: - Org Row

@@ -52,6 +52,13 @@ final class SyncStore {
         self.syncService = syncService
     }
 
+    /// Preview initializer — sets an explicit initial state without a real database or service.
+    init(previewState: SyncState) {
+        self.database = try! AppDatabase.inMemory()
+        self.syncService = GitHubSyncService()
+        self.state = previewState
+    }
+
     // MARK: - Sync
 
     /// Start a full sync of all repositories and issues from GitHub.

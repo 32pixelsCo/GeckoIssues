@@ -3,7 +3,7 @@ import SwiftUI
 /// Step 3 of the onboarding wizard: choose which repositories to sync.
 struct SelectReposStepView: View {
     var authStore: AuthStore
-    var syncService: GitHubSyncService
+    var syncService: any SyncServiceProtocol
     var selectedOrg: OrgOption
     @Binding var selectedRepoIds: Set<Int64>
     var onBack: () -> Void
@@ -171,6 +171,37 @@ struct SelectReposStepView: View {
         }
         isLoading = false
     }
+}
+
+// MARK: - Previews
+
+#Preview("Loading") {
+    let org = OrgOption(id: 1, login: "octocat", avatarURL: nil, isPersonalAccount: true)
+    return SelectReposStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        syncService: PreviewSyncService(),
+        selectedOrg: org,
+        selectedRepoIds: .constant([]),
+        onBack: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Loaded") {
+    SelectReposStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        syncService: PreviewSyncService(repos: [
+            .preview(id: 1, name: "gecko-issues"),
+            .preview(id: 2, name: "website"),
+            .preview(id: 3, name: "api-client", isPrivate: true),
+        ]),
+        selectedOrg: OrgOption(id: 1, login: "octocat", avatarURL: nil, isPersonalAccount: true),
+        selectedRepoIds: .constant([1, 3]),
+        onBack: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
 }
 
 // MARK: - Repo Row
