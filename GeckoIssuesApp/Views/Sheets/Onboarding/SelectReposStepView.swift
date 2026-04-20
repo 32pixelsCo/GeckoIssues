@@ -24,9 +24,10 @@ struct SelectReposStepView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var filterText = ""
+    @FocusState private var filterFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
             Text("Select a repository")
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
@@ -34,9 +35,8 @@ struct SelectReposStepView: View {
             Text("Choose one or more repositories to sync issues from")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-                .padding(.top, 8)
 
-            Spacer().frame(height: 16)
+            Spacer().frame(height: 8)
 
             repoListContent
                 .padding(.horizontal, 40)
@@ -44,7 +44,6 @@ struct SelectReposStepView: View {
             if !groups.isEmpty {
                 selectionSummary
                     .padding(.horizontal, 40)
-                    .padding(.top, 6)
             }
 
             Spacer()
@@ -94,7 +93,7 @@ struct SelectReposStepView: View {
             }
             .frame(maxWidth: .infinity)
         } else {
-            VStack(spacing: 0) {
+            VStack(spacing: 8) {
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
@@ -103,11 +102,11 @@ struct SelectReposStepView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 13))
                         .accessibilityLabel("Filter repositories")
+                        .focused($filterFocused)
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
-                .padding(.bottom, 6)
 
                 List {
                     ForEach(filteredGroups) { group in
@@ -124,9 +123,9 @@ struct SelectReposStepView: View {
                         }
                     }
                 }
-                .listStyle(.plain)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor), lineWidth: 1))
+                .listStyle(.inset)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor), lineWidth: 1))
                 .frame(height: 220)
             }
         }
@@ -207,6 +206,9 @@ struct SelectReposStepView: View {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+        if errorMessage == nil {
+            filterFocused = true
+        }
     }
 }
 
