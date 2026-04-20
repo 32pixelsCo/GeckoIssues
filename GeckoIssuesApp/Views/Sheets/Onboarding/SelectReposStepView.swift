@@ -5,6 +5,7 @@ import SwiftUI
 struct AccountGroup: Identifiable {
     let id: Int64
     let login: String
+    let avatarURL: String?
     let isPersonalAccount: Bool
     let repos: [RepoOption]
 }
@@ -149,7 +150,7 @@ struct SelectReposStepView: View {
                 group.login.localizedCaseInsensitiveContains(filterText)
             }
             guard !matched.isEmpty else { return nil }
-            return AccountGroup(id: group.id, login: group.login, isPersonalAccount: group.isPersonalAccount, repos: matched)
+            return AccountGroup(id: group.id, login: group.login, avatarURL: group.avatarURL, isPersonalAccount: group.isPersonalAccount, repos: matched)
         }
     }
 
@@ -172,9 +173,9 @@ struct SelectReposStepView: View {
         do {
             let data = try await syncService.fetchViewerWithOrganizations(token: token)
 
-            let accounts: [(id: Int64, login: String, isPersonal: Bool)] =
-                [(data.viewer.databaseId, data.viewer.login, true)] +
-                data.organizations.map { ($0.databaseId, $0.login, false) }
+            let accounts: [(id: Int64, login: String, avatarURL: String?, isPersonal: Bool)] =
+                [(data.viewer.databaseId, data.viewer.login, data.viewer.avatarUrl, true)] +
+                data.organizations.map { ($0.databaseId, $0.login, $0.avatarUrl, false) }
 
             var fetched: [AccountGroup] = []
             try await withThrowingTaskGroup(of: AccountGroup.self) { group in
@@ -191,7 +192,7 @@ struct SelectReposStepView: View {
                         let repos = repoData
                             .map { RepoOption(id: $0.databaseId, name: $0.name, nameWithOwner: $0.nameWithOwner, isPrivate: $0.isPrivate) }
                             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                        return AccountGroup(id: account.id, login: account.login, isPersonalAccount: account.isPersonal, repos: repos)
+                        return AccountGroup(id: account.id, login: account.login, avatarURL: account.avatarURL, isPersonalAccount: account.isPersonal, repos: repos)
                     }
                 }
                 for try await accountGroup in group {
@@ -214,8 +215,9 @@ private struct AccountHeader: View {
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: group.isPersonalAccount ? "person.circle" : "building.2")
-                .font(.system(size: 12))
+            avatar
+                .frame(width: 16, height: 16)
+                .clipShape(RoundedRectangle(cornerRadius: group.isPersonalAccount ? 8 : 4))
             Text(group.login)
                 .font(.system(size: 12, weight: .semibold))
             if group.isPersonalAccount {
@@ -228,6 +230,25 @@ private struct AccountHeader: View {
             }
         }
         .accessibilityLabel("\(group.login)\(group.isPersonalAccount ? ", personal account" : ", organization")")
+    }
+
+    @ViewBuilder
+    private var avatar: some View {
+        if let urlString = group.avatarURL, let url = URL(string: urlString) {
+            AsyncImage(url: url) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                fallbackIcon
+            }
+        } else {
+            fallbackIcon
+        }
+    }
+
+    private var fallbackIcon: some View {
+        Image(systemName: group.isPersonalAccount ? "person.circle.fill" : "building.2.fill")
+            .font(.system(size: 16))
+            .foregroundStyle(.secondary)
     }
 }
 
