@@ -12,7 +12,7 @@ struct ConnectGitHubStepView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Get Started")
+            Text("Connect to GitHub")
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
 
@@ -22,7 +22,7 @@ struct ConnectGitHubStepView: View {
             VStack(alignment: .leading, spacing: 0) {
                 AuthStepRow(
                     number: 1,
-                    title: "Connect to Github",
+                    title: "Sign in",
                     state: step1State,
                     isLast: false
                 ) {

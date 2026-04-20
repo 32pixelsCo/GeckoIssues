@@ -1,15 +1,25 @@
 import SwiftUI
 
-/// Step 3 of the onboarding wizard: choose which repositories to sync.
+// MARK: - Account Group
+
+struct AccountGroup: Identifiable {
+    let id: Int64
+    let login: String
+    let isPersonalAccount: Bool
+    let repos: [RepoOption]
+}
+
+// MARK: - View
+
+/// Combined org + repo selection step: shows all repos grouped by account, sorted alphabetically.
 struct SelectReposStepView: View {
     var authStore: AuthStore
     var syncService: any SyncServiceProtocol
-    var selectedOrg: OrgOption
     @Binding var selectedRepoIds: Set<Int64>
     var onBack: () -> Void
     var onContinue: () -> Void
 
-    @State private var repos: [RepoOption] = []
+    @State private var groups: [AccountGroup] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var filterText = ""
@@ -30,7 +40,7 @@ struct SelectReposStepView: View {
             repoListContent
                 .padding(.horizontal, 40)
 
-            if !repos.isEmpty {
+            if !groups.isEmpty {
                 selectionSummary
                     .padding(.horizontal, 40)
                     .padding(.top, 6)
@@ -95,21 +105,26 @@ struct SelectReposStepView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.quaternary)
-                )
+                .background(RoundedRectangle(cornerRadius: 6).fill(.quaternary))
                 .padding(.bottom, 6)
 
-                List(filteredRepos) { repo in
-                    RepoRow(
-                        repo: repo,
-                        isSelected: selectedRepoIds.contains(repo.id),
-                        onToggle: { toggleRepo(repo.id) }
-                    )
+                List {
+                    ForEach(filteredGroups) { group in
+                        Section {
+                            ForEach(group.repos) { repo in
+                                RepoRow(
+                                    repo: repo,
+                                    isSelected: selectedRepoIds.contains(repo.id),
+                                    onToggle: { toggleRepo(repo.id) }
+                                )
+                            }
+                        } header: {
+                            AccountHeader(group: group)
+                        }
+                    }
                 }
                 .listStyle(.bordered)
-                .frame(height: 180)
+                .frame(height: 220)
             }
         }
     }
@@ -126,9 +141,16 @@ struct SelectReposStepView: View {
 
     // MARK: - Filtering
 
-    private var filteredRepos: [RepoOption] {
-        guard !filterText.isEmpty else { return repos }
-        return repos.filter { $0.name.localizedCaseInsensitiveContains(filterText) }
+    private var filteredGroups: [AccountGroup] {
+        guard !filterText.isEmpty else { return groups }
+        return groups.compactMap { group in
+            let matched = group.repos.filter {
+                $0.name.localizedCaseInsensitiveContains(filterText) ||
+                group.login.localizedCaseInsensitiveContains(filterText)
+            }
+            guard !matched.isEmpty else { return nil }
+            return AccountGroup(id: group.id, login: group.login, isPersonalAccount: group.isPersonalAccount, repos: matched)
+        }
     }
 
     // MARK: - Toggle
@@ -148,24 +170,36 @@ struct SelectReposStepView: View {
         isLoading = true
         errorMessage = nil
         do {
-            let repoData: [GitHubSyncService.RepositoryData]
-            if selectedOrg.isPersonalAccount {
-                repoData = try await syncService.fetchRepositories(token: token)
-            } else {
-                repoData = try await syncService.fetchOrganizationRepositories(
-                    login: selectedOrg.login,
-                    token: token
-                )
+            let data = try await syncService.fetchViewerWithOrganizations(token: token)
+
+            let accounts: [(id: Int64, login: String, isPersonal: Bool)] =
+                [(data.viewer.databaseId, data.viewer.login, true)] +
+                data.organizations.map { ($0.databaseId, $0.login, false) }
+
+            var fetched: [AccountGroup] = []
+            try await withThrowingTaskGroup(of: AccountGroup.self) { group in
+                for account in accounts {
+                    group.addTask {
+                        let repoData: [GitHubSyncService.RepositoryData]
+                        if account.isPersonal {
+                            repoData = try await syncService.fetchRepositories(token: token)
+                        } else {
+                            repoData = try await syncService.fetchOrganizationRepositories(
+                                login: account.login, token: token
+                            )
+                        }
+                        let repos = repoData
+                            .map { RepoOption(id: $0.databaseId, name: $0.name, nameWithOwner: $0.nameWithOwner, isPrivate: $0.isPrivate) }
+                            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                        return AccountGroup(id: account.id, login: account.login, isPersonalAccount: account.isPersonal, repos: repos)
+                    }
+                }
+                for try await accountGroup in group {
+                    fetched.append(accountGroup)
+                }
             }
-            repos = repoData.map { r in
-                RepoOption(
-                    id: r.databaseId,
-                    name: r.name,
-                    nameWithOwner: r.nameWithOwner,
-                    isPrivate: r.isPrivate
-                )
-            }
-            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+
+            groups = fetched.sorted { $0.login.localizedCaseInsensitiveCompare($1.login) == .orderedAscending }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -173,35 +207,28 @@ struct SelectReposStepView: View {
     }
 }
 
-// MARK: - Previews
+// MARK: - Account Header
 
-#Preview("Loading") {
-    let org = OrgOption(id: 1, login: "octocat", avatarURL: nil, isPersonalAccount: true)
-    return SelectReposStepView(
-        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
-        syncService: PreviewSyncService(),
-        selectedOrg: org,
-        selectedRepoIds: .constant([]),
-        onBack: {},
-        onContinue: {}
-    )
-    .frame(width: 520, height: 460)
-}
+private struct AccountHeader: View {
+    var group: AccountGroup
 
-#Preview("Loaded") {
-    SelectReposStepView(
-        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
-        syncService: PreviewSyncService(repos: [
-            .preview(id: 1, name: "gecko-issues"),
-            .preview(id: 2, name: "website"),
-            .preview(id: 3, name: "api-client", isPrivate: true),
-        ]),
-        selectedOrg: OrgOption(id: 1, login: "octocat", avatarURL: nil, isPersonalAccount: true),
-        selectedRepoIds: .constant([1, 3]),
-        onBack: {},
-        onContinue: {}
-    )
-    .frame(width: 520, height: 460)
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: group.isPersonalAccount ? "person.circle" : "building.2")
+                .font(.system(size: 12))
+            Text(group.login)
+                .font(.system(size: 12, weight: .semibold))
+            if group.isPersonalAccount {
+                Text("Personal")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.quaternary))
+            }
+        }
+        .accessibilityLabel("\(group.login)\(group.isPersonalAccount ? ", personal account" : ", organization")")
+    }
 }
 
 // MARK: - Repo Row
@@ -233,4 +260,38 @@ private struct RepoRow: View {
         .accessibilityLabel("\(repo.name)\(repo.isPrivate ? ", private" : "")\(isSelected ? ", selected" : ", not selected")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
+}
+
+// MARK: - Previews
+
+#Preview("Loading") {
+    SelectReposStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        syncService: PreviewSyncService(),
+        selectedRepoIds: .constant([]),
+        onBack: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
+}
+
+#Preview("Loaded") {
+    SelectReposStepView(
+        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        syncService: PreviewSyncService(
+            orgs: [
+                GitHubSyncService.OrganizationData(databaseId: 10, login: "32pixels", avatarUrl: nil),
+                GitHubSyncService.OrganizationData(databaseId: 11, login: "github", avatarUrl: nil),
+            ],
+            repos: [
+                .preview(id: 1, name: "gecko-issues"),
+                .preview(id: 2, name: "website"),
+                .preview(id: 3, name: "api-client", isPrivate: true),
+            ]
+        ),
+        selectedRepoIds: .constant([1, 3]),
+        onBack: {},
+        onContinue: {}
+    )
+    .frame(width: 520, height: 460)
 }
