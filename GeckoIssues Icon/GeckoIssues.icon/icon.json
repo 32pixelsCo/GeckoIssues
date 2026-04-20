@@ -14,6 +14,19 @@
               585.6102591317269
             ]
           }
+        },
+        {
+          "blend-mode" : "normal",
+          "glass" : false,
+          "image-name" : "Leaf.png",
+          "name" : "Leaf",
+          "position" : {
+            "scale" : 1.5,
+            "translation-in-points" : [
+              81.95695760599688,
+              -0.4762379977105411
+            ]
+          }
         }
       ],
       "shadow" : {
