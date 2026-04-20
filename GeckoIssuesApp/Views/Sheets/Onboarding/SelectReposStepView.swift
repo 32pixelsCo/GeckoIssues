@@ -56,6 +56,7 @@ struct SelectReposStepView: View {
                     .keyboardShortcut(.defaultAction)
                     .disabled(selectedRepoIds.isEmpty)
             }
+            .controlSize(.large)
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
         }

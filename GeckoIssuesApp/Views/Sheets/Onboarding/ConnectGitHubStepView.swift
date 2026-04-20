@@ -66,6 +66,7 @@ struct ConnectGitHubStepView: View {
                     .disabled(!authStore.isAuthenticated)
                     .focused($continueButtonFocused)
             }
+            .controlSize(.large)
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
         }

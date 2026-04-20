@@ -38,6 +38,7 @@ struct SyncingStepView: View {
                 .disabled(!isDone)
                 .accessibilityLabel("Done, close wizard")
             }
+            .controlSize(.large)
             .padding(.horizontal, 32)
             .padding(.bottom, 24)
         }
