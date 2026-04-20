@@ -104,6 +104,7 @@ struct SyncingStepView: View {
                     guard let token = authStore.accessToken else { return }
                     syncStore.startFullSync(token: token)
                 }
+                .controlSize(.large)
                 .accessibilityLabel("Retry sync")
             }
         }
