@@ -14,11 +14,6 @@ struct SyncingStepView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
 
-            Text(stepSubtitle)
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .padding(.top, 8)
-
             Spacer()
 
             syncContent
@@ -54,15 +49,6 @@ struct SyncingStepView: View {
     }
 
     // MARK: - Computed
-
-    private var stepSubtitle: String {
-        switch syncStore.state {
-        case .idle: "Preparing sync..."
-        case .syncing: "Syncing issues..."
-        case .completed: "Sync complete!"
-        case .error: "Sync encountered an error"
-        }
-    }
 
     private var isDone: Bool {
         switch syncStore.state {
@@ -101,9 +87,8 @@ struct SyncingStepView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 44))
                     .foregroundStyle(.green)
-                Text("All repositories synced.")
+                Text("All issues synced successfully")
                     .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
             }
 
         case .error(let message):
