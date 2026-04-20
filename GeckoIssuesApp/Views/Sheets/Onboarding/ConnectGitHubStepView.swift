@@ -118,10 +118,13 @@ struct ConnectGitHubStepView: View {
                 .disabled(step1State == .completed)
 
                 if step1State == .completed {
-                    Button("Restart") {
+                    Button {
                         authStore.signOut()
+                    } label: {
+                        Image(systemName: "arrow.circlepath")
                     }
                     .buttonStyle(.borderless)
+                    .accessibilityLabel("Restart sign-in")
                 }
             }
 
