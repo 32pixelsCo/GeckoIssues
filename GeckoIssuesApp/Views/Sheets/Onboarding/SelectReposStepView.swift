@@ -28,11 +28,11 @@ struct SelectReposStepView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            Text("Select a repository")
+            Text("Connect your repositories")
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
 
-            Text("Choose one or more repositories to sync issues from")
+            Text("Weʼll sync issues from these repositories")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
 
@@ -292,7 +292,7 @@ private struct RepoRow: View {
 
 #Preview("Loading") {
     SelectReposStepView(
-        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        authStore: AuthStore(previewState: .authenticated(username: "jlong")),
         syncService: PreviewSyncService(),
         selectedRepoIds: .constant([]),
         onBack: {},
