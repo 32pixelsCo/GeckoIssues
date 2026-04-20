@@ -124,8 +124,9 @@ struct SelectReposStepView: View {
                         }
                     }
                 }
-                .listStyle(.bordered)
+                .listStyle(.plain)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor), lineWidth: 1))
                 .frame(height: 220)
             }
         }
