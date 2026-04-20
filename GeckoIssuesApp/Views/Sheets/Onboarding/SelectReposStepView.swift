@@ -298,19 +298,35 @@ private struct RepoRow: View {
 
 #Preview("Loaded") {
     SelectReposStepView(
-        authStore: AuthStore(previewState: .authenticated(username: "octocat")),
+        authStore: AuthStore(previewState: .authenticated(username: "jlong")),
         syncService: PreviewSyncService(
+            viewer: GitHubSyncService.ViewerData(databaseId: 4173, login: "jlong", avatarUrl: "https://avatars.githubusercontent.com/u/4173?v=4"),
             orgs: [
-                GitHubSyncService.OrganizationData(databaseId: 10, login: "32pixels", avatarUrl: nil),
-                GitHubSyncService.OrganizationData(databaseId: 11, login: "github", avatarUrl: nil),
+                GitHubSyncService.OrganizationData(databaseId: 46849640, login: "32pixelsCo", avatarUrl: "https://avatars.githubusercontent.com/u/46849640?v=4"),
+                GitHubSyncService.OrganizationData(databaseId: 14429, login: "radiant", avatarUrl: "https://avatars.githubusercontent.com/u/14429?v=4"),
             ],
-            repos: [
-                .preview(id: 1, name: "gecko-issues"),
-                .preview(id: 2, name: "website"),
-                .preview(id: 3, name: "api-client", isPrivate: true),
+            personalRepos: [
+                .preview(id: 9971036,   name: "css-spinners",        owner: "jlong"),
+                .preview(id: 6326674,   name: "cookbook",            owner: "jlong"),
+                .preview(id: 160424186, name: "entypo",              owner: "jlong"),
+                .preview(id: 13390898,  name: "fontcustom",          owner: "jlong"),
+            ],
+            orgRepos: [
+                "32pixelsCo": [
+                    .preview(id: 1131870540, name: "ContextStore",   owner: "32pixelsCo", isPrivate: true),
+                    .preview(id: 1211019915, name: "GeckoIssues",    owner: "32pixelsCo", isPrivate: true),
+                    .preview(id: 973451841,  name: "TaskpageApp",    owner: "32pixelsCo", isPrivate: true),
+                    .preview(id: 166613845,  name: "website",        owner: "32pixelsCo", isPrivate: true),
+                ],
+                "radiant": [
+                    .preview(id: 27046, name: "radiant",                          owner: "radiant"),
+                    .preview(id: 27053, name: "radiant-extension-registry",       owner: "radiant"),
+                    .preview(id: 27085, name: "radiant-page-attachments-extension", owner: "radiant"),
+                    .preview(id: 27088, name: "radiant-search-extension",         owner: "radiant"),
+                ],
             ]
         ),
-        selectedRepoIds: .constant([1, 3]),
+        selectedRepoIds: .constant([1211019915, 9971036]),
         onBack: {},
         onContinue: {}
     )
