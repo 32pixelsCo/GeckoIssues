@@ -145,7 +145,12 @@ struct SelectOrgStepView: View {
 #Preview("Loaded") {
     SelectOrgStepView(
         authStore: AuthStore(previewState: .authenticated(username: "octocat")),
-        syncService: PreviewSyncService(orgs: [.preview]),
+        syncService: PreviewSyncService(orgs: [
+            GitHubSyncService.OrganizationData(databaseId: 10, login: "32pixels", avatarUrl: nil),
+            GitHubSyncService.OrganizationData(databaseId: 11, login: "github", avatarUrl: nil),
+            GitHubSyncService.OrganizationData(databaseId: 12, login: "swift-server", avatarUrl: nil),
+            GitHubSyncService.OrganizationData(databaseId: 13, login: "apple", avatarUrl: nil),
+        ]),
         selectedOrg: .constant(OrgOption(id: 1, login: "octocat", avatarURL: nil, isPersonalAccount: true)),
         onBack: {},
         onContinue: {}
