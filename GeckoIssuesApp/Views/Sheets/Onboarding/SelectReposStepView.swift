@@ -27,11 +27,11 @@ struct SelectReposStepView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Get Started")
+            Text("Select a repository")
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 24)
 
-            Text("Choose repos to sync")
+            Text("Choose one or more repositories to sync issues from")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .padding(.top, 8)
@@ -125,6 +125,7 @@ struct SelectReposStepView: View {
                     }
                 }
                 .listStyle(.bordered)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .frame(height: 220)
             }
         }
