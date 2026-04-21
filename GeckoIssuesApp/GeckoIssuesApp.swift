@@ -24,5 +24,14 @@ struct GeckoIssuesApp: App {
                 database: database
             )
         }
+
+        Settings {
+            SettingsView(
+                appStore: appStore,
+                syncStore: syncStore,
+                authStore: authStore,
+                database: database
+            )
+        }
     }
 }
