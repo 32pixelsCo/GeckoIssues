@@ -64,9 +64,13 @@ final class SyncStore {
     /// Refresh all tracked repos by re-fetching their issues from GitHub.
     ///
     /// Reads the set of tracked repo IDs from the local database and only
-    /// fetches issues for those repos. Does not discover new repos — use
+    /// fetches issues for those repos. Uses incremental sync (fetching only
+    /// issues updated since the last sync) when a cursor exists. Pass
+    /// `force: true` to ignore stored cursors and do a full re-fetch.
+    ///
+    /// Does not discover new repos — use
     /// `startSyncForRepos(repoIds:token:)` for that.
-    func startFullSync(token: String) {
+    func startFullSync(token: String, force: Bool = false) {
         if case .syncing = state { return }
 
         errorMessage = nil
@@ -87,7 +91,7 @@ final class SyncStore {
                 logger.info("Starting refresh sync for \(trackedRepos.count) tracked repos")
 
                 let repoEntries = trackedRepos.map {
-                    (id: $0.id, nameWithOwner: $0.nameWithOwner)
+                    (id: $0.id, nameWithOwner: $0.nameWithOwner, syncedAt: force ? nil : $0.syncedAt)
                 }
                 try await syncIssues(for: repoEntries, token: token)
 
@@ -184,7 +188,7 @@ final class SyncStore {
                 // Step 4: Fetch and persist issues for selected repos only
                 let reposToSync = repos.filter { repoIds.contains($0.databaseId) }
                 let repoEntries = reposToSync.map {
-                    (id: $0.databaseId, nameWithOwner: $0.nameWithOwner)
+                    (id: $0.databaseId, nameWithOwner: $0.nameWithOwner, syncedAt: nil as Date?)
                 }
                 try await syncIssues(for: repoEntries, token: token)
 
@@ -217,8 +221,11 @@ final class SyncStore {
     // MARK: - Private Sync
 
     /// Fetch and persist issues for the given repos, updating sync progress.
+    ///
+    /// When `syncedAt` is non-nil for a repo, performs an incremental fetch
+    /// (only issues updated since that date). When nil, fetches all issues.
     private func syncIssues(
-        for repos: [(id: Int64, nameWithOwner: String)],
+        for repos: [(id: Int64, nameWithOwner: String, syncedAt: Date?)],
         token: String
     ) async throws {
         for (index, repo) in repos.enumerated() {
@@ -234,9 +241,16 @@ final class SyncStore {
             let owner = String(parts[0])
             let name = String(parts[1])
 
+            if repo.syncedAt != nil {
+                logger.info("Incremental sync for \(repo.nameWithOwner) (since \(repo.syncedAt!))")
+            } else {
+                logger.info("Full sync for \(repo.nameWithOwner)")
+            }
+
             let issues = try await syncService.fetchIssues(
                 owner: owner,
                 name: name,
+                since: repo.syncedAt,
                 token: token
             )
             logger.info("Fetched \(issues.count) issues for \(repo.nameWithOwner)")

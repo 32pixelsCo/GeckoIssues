@@ -9,7 +9,7 @@ protocol SyncServiceProtocol: Sendable {
     func fetchViewerWithOrganizations(token: String) async throws -> GitHubSyncService.ViewerWithOrganizationsData
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData]
-    func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData]
+    func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData]
 }
 
 // MARK: - Service
@@ -106,10 +106,18 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
 
     // MARK: - Fetch Issues
 
-    func fetchIssues(owner: String, name: String, token: String) async throws -> [IssueData] {
+    func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [IssueData] {
+        let query = since != nil ? Queries.issuesIncremental : Queries.issues
+        var variables: [String: any Encodable & Sendable] = ["owner": owner, "name": name]
+        if let since {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            variables["since"] = formatter.string(from: since)
+        }
+
         let nodes: [IssueNode] = try await client.executePaginated(
-            query: Queries.issues,
-            variables: ["owner": owner, "name": name],
+            query: query,
+            variables: variables,
             token: token
         ) { (response: RepoIssuesResponse) in
             let conn = response.repository.issues
@@ -514,6 +522,57 @@ private enum Queries {
           after: $after,
           states: [OPEN, CLOSED],
           orderBy: { field: UPDATED_AT, direction: DESC }
+        ) {
+          nodes {
+            databaseId
+            number
+            title
+            body
+            state
+            url
+            createdAt
+            updatedAt
+            closedAt
+            author { login }
+            milestone {
+              id
+              number
+              title
+              description
+              state
+              dueOn
+            }
+            labels(first: 100) {
+              nodes { id name color description }
+            }
+            assignees(first: 100) {
+              nodes { databaseId login avatarUrl }
+            }
+            comments(first: 100) {
+              nodes {
+                id
+                author { login }
+                body
+                createdAt
+                updatedAt
+              }
+            }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+    """
+
+    static let issuesIncremental = """
+    query($owner: String!, $name: String!, $since: DateTime!, $after: String) {
+      repository(owner: $owner, name: $name) {
+        issues(
+          first: 50,
+          after: $after,
+          states: [OPEN, CLOSED],
+          orderBy: { field: UPDATED_AT, direction: DESC },
+          filterBy: { since: $since }
         ) {
           nodes {
             databaseId
