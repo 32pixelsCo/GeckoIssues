@@ -80,6 +80,9 @@ struct RepositoryListView: View {
         .onChange(of: appStore.selectedAccount?.id) {
             Task { await loadRepositories() }
         }
+        .onChange(of: appStore.repositoryChangeCount) {
+            Task { await loadRepositories() }
+        }
     }
 
     // MARK: - Filtering

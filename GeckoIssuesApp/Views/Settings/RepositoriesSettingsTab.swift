@@ -233,6 +233,7 @@ struct RepositoriesSettingsTab: View {
             selectedRepoId = nil
             await loadTrackedRepos()
             await appStore.loadAccounts(from: database)
+            appStore.repositoriesDidChange()
         } catch {
             // Non-fatal
         }

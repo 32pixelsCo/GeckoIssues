@@ -8,6 +8,12 @@ final class AppStore {
     var selectedAccount: Account?
     var selectedRepository: Repository?
     var selectedIssue: Issue?
+    private(set) var repositoryChangeCount = 0
+
+    /// Signal that the tracked repository set has changed so views can reload.
+    func repositoriesDidChange() {
+        repositoryChangeCount += 1
+    }
 
     /// Load accounts that own at least one tracked repository, sorted with user accounts first, then orgs.
     func loadAccounts(from database: AppDatabase) async {
