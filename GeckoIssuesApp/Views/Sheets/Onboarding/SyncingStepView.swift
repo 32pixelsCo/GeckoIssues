@@ -102,7 +102,7 @@ struct SyncingStepView: View {
                     .multilineTextAlignment(.center)
                 Button("Retry") {
                     guard let token = authStore.accessToken else { return }
-                    syncStore.startFullSync(token: token)
+                    syncStore.startSyncForRepos(repoIds: selectedRepoIds, token: token)
                 }
                 .controlSize(.large)
                 .accessibilityLabel("Retry sync")
