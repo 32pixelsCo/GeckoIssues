@@ -30,7 +30,7 @@ struct SettingsView: View {
 
             GitHubSettingsTab(authStore: authStore)
                 .tabItem {
-                    SwiftUI.Label("GitHub", systemImage: "cat")
+                    SwiftUI.Label("GitHub", systemImage: "arrow.triangle.branch")
                 }
                 .tag(SettingsTab.github.rawValue)
         }
