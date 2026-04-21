@@ -61,29 +61,61 @@ final class SyncStore {
 
     // MARK: - Sync
 
-    /// Start a full sync of all repositories and issues from GitHub.
+    /// Refresh all tracked repos by re-fetching their issues from GitHub.
+    ///
+    /// Reads the set of tracked repo IDs from the local database and only
+    /// fetches issues for those repos. Does not discover new repos — use
+    /// `startSyncForRepos(repoIds:token:)` for that.
     func startFullSync(token: String) {
-        startSync(token: token, repoIds: nil)
+        if case .syncing = state { return }
+
+        errorMessage = nil
+        syncTask = Task {
+            do {
+                let trackedRepos = try await database.dbQueue.read { db in
+                    try Repository
+                        .filter(Column("tracked") == true)
+                        .fetchAll(db)
+                }
+
+                guard !trackedRepos.isEmpty else {
+                    logger.info("No tracked repos to sync")
+                    state = .completed(Date())
+                    return
+                }
+
+                logger.info("Starting refresh sync for \(trackedRepos.count) tracked repos")
+
+                let repoEntries = trackedRepos.map {
+                    (id: $0.id, nameWithOwner: $0.nameWithOwner)
+                }
+                try await syncIssues(for: repoEntries, token: token)
+
+                state = .completed(Date())
+                logger.info("Sync completed")
+            } catch is CancellationError {
+                state = .idle
+                logger.info("Sync cancelled")
+            } catch {
+                if Task.isCancelled {
+                    state = .idle
+                    logger.info("Sync cancelled")
+                } else {
+                    let message = error.localizedDescription
+                    state = .error(message)
+                    errorMessage = message
+                    logger.error("Sync failed: \(message)")
+                }
+            }
+        }
     }
 
-    /// Start a sync limited to the specified repository IDs.
+    /// Discover repos from GitHub and sync issues for the specified repo IDs.
     ///
     /// All repos and org memberships are persisted to the DB, but issues are only
-    /// fetched for repos in `repoIds`. The sidebar filters to repos with `syncedAt != nil`,
-    /// so only the selected repos appear there.
+    /// fetched for repos in `repoIds`. Used during onboarding and when adding
+    /// repos via Settings.
     func startSyncForRepos(repoIds: Set<Int64>, token: String) {
-        startSync(token: token, repoIds: repoIds)
-    }
-
-    /// Cancel an in-progress sync.
-    func cancelSync() {
-        syncTask?.cancel()
-        syncTask = nil
-    }
-
-    // MARK: - Private Sync
-
-    private func startSync(token: String, repoIds: Set<Int64>?) {
         if case .syncing = state { return }
 
         errorMessage = nil
@@ -95,8 +127,7 @@ final class SyncStore {
                     repositoriesSynced: 0,
                     repositoriesTotal: 0
                 ))
-                let label = repoIds == nil ? "full" : "selective (\(repoIds!.count) repos)"
-                logger.info("Starting \(label) sync")
+                logger.info("Starting discovery sync (\(repoIds.count) repos)")
 
                 let viewerData = try await syncService.fetchViewerWithOrganizations(token: token)
                 let viewer = viewerData.viewer
@@ -116,11 +147,13 @@ final class SyncStore {
 
                 // Step 2b: Discover org accounts and fetch their repos directly
                 var seenRepoIds = Set(repos.map(\.databaseId))
-                let orgLogins = Set(
+                let orgLoginsFromRepos = Set(
                     repos
                         .filter { $0.owner.typeName == "Organization" }
                         .map(\.owner.login)
                 )
+                let orgLoginsFromMemberships = Set(orgAccounts.map(\.login))
+                let orgLogins = orgLoginsFromRepos.union(orgLoginsFromMemberships)
                 for orgLogin in orgLogins {
                     try Task.checkCancellation()
                     do {
@@ -148,35 +181,15 @@ final class SyncStore {
                 // Step 3: Save accounts + all repos; mark selected repos as tracked
                 try await persistAccountsAndRepos(viewer: viewer, orgAccounts: orgAccounts, repos: repos, trackedRepoIds: repoIds)
 
-                // Step 4: Fetch and persist issues — filtered to selected repos if provided
-                let reposToSync = repoIds.map { ids in repos.filter { ids.contains($0.databaseId) } } ?? repos
-                for (index, repo) in reposToSync.enumerated() {
-                    try Task.checkCancellation()
-
-                    state = .syncing(SyncProgress(
-                        phase: .syncingRepository(repo.nameWithOwner),
-                        repositoriesSynced: index,
-                        repositoriesTotal: reposToSync.count
-                    ))
-
-                    let parts = repo.nameWithOwner.split(separator: "/", maxSplits: 1)
-                    let owner = String(parts[0])
-                    let name = String(parts[1])
-
-                    let issues = try await syncService.fetchIssues(
-                        owner: owner,
-                        name: name,
-                        token: token
-                    )
-                    logger.info("Fetched \(issues.count) issues for \(repo.nameWithOwner)")
-
-                    try await persistIssues(issues, repositoryId: repo.databaseId)
+                // Step 4: Fetch and persist issues for selected repos only
+                let reposToSync = repos.filter { repoIds.contains($0.databaseId) }
+                let repoEntries = reposToSync.map {
+                    (id: $0.databaseId, nameWithOwner: $0.nameWithOwner)
                 }
+                try await syncIssues(for: repoEntries, token: token)
 
-                let completedAt = Date()
-                state = .completed(completedAt)
+                state = .completed(Date())
                 logger.info("Sync completed")
-
             } catch is CancellationError {
                 state = .idle
                 logger.info("Sync cancelled")
@@ -192,6 +205,43 @@ final class SyncStore {
                     logger.error("Sync failed: \(message)")
                 }
             }
+        }
+    }
+
+    /// Cancel an in-progress sync.
+    func cancelSync() {
+        syncTask?.cancel()
+        syncTask = nil
+    }
+
+    // MARK: - Private Sync
+
+    /// Fetch and persist issues for the given repos, updating sync progress.
+    private func syncIssues(
+        for repos: [(id: Int64, nameWithOwner: String)],
+        token: String
+    ) async throws {
+        for (index, repo) in repos.enumerated() {
+            try Task.checkCancellation()
+
+            state = .syncing(SyncProgress(
+                phase: .syncingRepository(repo.nameWithOwner),
+                repositoriesSynced: index,
+                repositoriesTotal: repos.count
+            ))
+
+            let parts = repo.nameWithOwner.split(separator: "/", maxSplits: 1)
+            let owner = String(parts[0])
+            let name = String(parts[1])
+
+            let issues = try await syncService.fetchIssues(
+                owner: owner,
+                name: name,
+                token: token
+            )
+            logger.info("Fetched \(issues.count) issues for \(repo.nameWithOwner)")
+
+            try await persistIssues(issues, repositoryId: repo.id)
         }
     }
 

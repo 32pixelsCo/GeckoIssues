@@ -8,6 +8,12 @@ final class AppStore {
     var selectedAccount: Account?
     var selectedRepository: Repository?
     var selectedIssue: Issue?
+    private(set) var repositoryChangeCount = 0
+
+    /// Signal that the tracked repository set has changed so views can reload.
+    func repositoriesDidChange() {
+        repositoryChangeCount += 1
+    }
 
     /// Load accounts that own at least one tracked repository, sorted with user accounts first, then orgs.
     func loadAccounts(from database: AppDatabase) async {
@@ -23,8 +29,8 @@ final class AppStore {
                     )
                     .fetchAll(db)
             }
-            // Auto-select first account if none selected
-            if selectedAccount == nil {
+            // Auto-select first account if none selected or current was removed
+            if selectedAccount == nil || !accounts.contains(where: { $0.id == selectedAccount?.id }) {
                 selectedAccount = accounts.first
             }
         } catch {

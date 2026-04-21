@@ -144,9 +144,9 @@ private func makeCommentData(id: Int64 = 600) -> GitHubSyncService.CommentData {
 @Suite("SyncStore")
 struct SyncStoreTests {
 
-    @Test("Full sync persists account, repos, issues, labels, milestones, assignees, comments")
+    @Test("Discovery sync persists account, repos, issues, labels, milestones, assignees, comments")
     @MainActor
-    func fullSyncPersistsAllData() async throws {
+    func discoverySyncPersistsAllData() async throws {
         let db = try AppDatabase.inMemory()
         let milestone = makeMilestoneData()
         let label = makeLabelData()
@@ -166,7 +166,7 @@ struct SyncStoreTests {
         )
 
         let store = SyncStore(database: db, syncService: mock)
-        store.startFullSync(token: "test-token")
+        store.startSyncForRepos(repoIds: [100], token: "test-token")
 
         // Wait for sync to complete
         while true {
@@ -248,7 +248,7 @@ struct SyncStoreTests {
         let store = SyncStore(database: db, syncService: mock)
         #expect(store.state == .idle)
 
-        store.startFullSync(token: "test-token")
+        store.startSyncForRepos(repoIds: [100], token: "test-token")
 
         // Wait for completion
         while true {
@@ -271,7 +271,7 @@ struct SyncStoreTests {
         let failing = FailingSyncService(error: GraphQLClientError.unauthorized)
         let store = SyncStore(database: db, syncService: failing)
 
-        store.startFullSync(token: "bad-token")
+        store.startSyncForRepos(repoIds: [100], token: "bad-token")
 
         // Wait for error state
         while true {
@@ -309,7 +309,7 @@ struct SyncStoreTests {
 
         // First sync
         let store1 = SyncStore(database: db, syncService: mock1)
-        store1.startFullSync(token: "token")
+        store1.startSyncForRepos(repoIds: [100], token: "token")
         while true {
             try await Task.sleep(for: .milliseconds(50))
             if case .completed = store1.state { break }
@@ -340,6 +340,7 @@ struct SyncStoreTests {
             issuesByRepo: ["octocat/hello-world": [issue2]]
         )
 
+        // Second sync uses startFullSync — repo is already tracked from first sync
         let store2 = SyncStore(database: db, syncService: mock2)
         store2.startFullSync(token: "token")
         while true {
@@ -371,7 +372,7 @@ struct SyncStoreTests {
         )
 
         let store = SyncStore(database: db, syncService: mock)
-        store.startFullSync(token: "token")
+        store.startSyncForRepos(repoIds: [100], token: "token")
 
         while true {
             try await Task.sleep(for: .milliseconds(50))
@@ -410,7 +411,7 @@ struct SyncStoreTests {
         )
 
         let store = SyncStore(database: db, syncService: mock)
-        store.startFullSync(token: "token")
+        store.startSyncForRepos(repoIds: [100, 101], token: "token")
 
         while true {
             try await Task.sleep(for: .milliseconds(50))
@@ -443,10 +444,10 @@ struct SyncStoreTests {
         )
 
         let store = SyncStore(database: db, syncService: mock)
-        store.startFullSync(token: "token")
+        store.startSyncForRepos(repoIds: [], token: "token")
 
         // Immediately try starting another sync — should be ignored
-        store.startFullSync(token: "token")
+        store.startSyncForRepos(repoIds: [], token: "token")
 
         while true {
             try await Task.sleep(for: .milliseconds(50))
@@ -474,7 +475,7 @@ struct SyncStoreTests {
         )
 
         let store = SyncStore(database: db, syncService: mock)
-        store.startFullSync(token: "token")
+        store.startSyncForRepos(repoIds: [100], token: "token")
 
         while true {
             try await Task.sleep(for: .milliseconds(50))
@@ -517,7 +518,7 @@ struct SyncStoreTests {
         )
 
         let store = SyncStore(database: db, syncService: mock)
-        store.startFullSync(token: "token")
+        store.startSyncForRepos(repoIds: [100, 101, 102], token: "token")
 
         while true {
             try await Task.sleep(for: .milliseconds(50))
@@ -533,6 +534,92 @@ struct SyncStoreTests {
 
         let names = Set(repos.map(\.name))
         #expect(names == ["repo-a", "repo-b", "repo-c"])
+    }
+    @Test("Full sync only syncs tracked repos")
+    @MainActor
+    func fullSyncOnlySyncsTrackedRepos() async throws {
+        let db = try AppDatabase.inMemory()
+        let owner = makeOwnerData()
+        let repo1 = makeRepoData(id: 100, name: "tracked-repo", owner: owner)
+        let repo2 = makeRepoData(id: 101, name: "untracked-repo", owner: owner)
+
+        let issue1 = makeIssueData(id: 400, number: 1)
+        let issue2 = makeIssueData(id: 401, number: 2)
+
+        // First: discovery sync to set up repos — only track repo1
+        let discoveryMock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo1, repo2],
+            issuesByRepo: [
+                "octocat/tracked-repo": [issue1],
+                "octocat/untracked-repo": [issue2]
+            ]
+        )
+        let store1 = SyncStore(database: db, syncService: discoveryMock)
+        store1.startSyncForRepos(repoIds: [100], token: "token")
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store1.state { break }
+            if case .error(let msg) = store1.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Only tracked repo should have issues
+        let issuesBefore = try await db.dbQueue.read { db in
+            try GeckoIssues.Issue.fetchAll(db)
+        }
+        #expect(issuesBefore.count == 1)
+        #expect(issuesBefore[0].repositoryId == 100)
+
+        // Now do a full sync (refresh) — should still only sync tracked repo
+        let issue3 = makeIssueData(id: 402, number: 3)
+        let refreshMock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo1, repo2],
+            issuesByRepo: [
+                "octocat/tracked-repo": [issue1, issue3],
+                "octocat/untracked-repo": [issue2]
+            ]
+        )
+        let store2 = SyncStore(database: db, syncService: refreshMock)
+        store2.startFullSync(token: "token")
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store2.state { break }
+            if case .error(let msg) = store2.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Should have 2 issues (both from tracked repo), none from untracked
+        let issuesAfter = try await db.dbQueue.read { db in
+            try GeckoIssues.Issue.fetchAll(db)
+        }
+        #expect(issuesAfter.count == 2)
+        #expect(issuesAfter.allSatisfy { $0.repositoryId == 100 })
+    }
+
+    @Test("Full sync with no tracked repos completes immediately")
+    @MainActor
+    func fullSyncNoTrackedRepos() async throws {
+        let db = try AppDatabase.inMemory()
+        let mock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [],
+            issuesByRepo: [:]
+        )
+
+        let store = SyncStore(database: db, syncService: mock)
+        store.startFullSync(token: "token")
+
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store.state { break }
+            if case .error(let msg) = store.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Should complete with no issues or repos
+        let repos = try await db.dbQueue.read { db in
+            try Repository.fetchAll(db)
+        }
+        #expect(repos.isEmpty)
     }
 }
 
