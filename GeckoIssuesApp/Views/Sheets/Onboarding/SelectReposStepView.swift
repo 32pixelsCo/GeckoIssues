@@ -274,7 +274,7 @@ private struct RepoRow: View {
                     .font(.system(size: 15))
                     .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
                     .frame(width: 18)
-                Image(systemName: repo.isPrivate ? "lock" : "folder")
+                Image(systemName: repo.isPrivate ? "lock" : "book.closed")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .frame(width: 16)

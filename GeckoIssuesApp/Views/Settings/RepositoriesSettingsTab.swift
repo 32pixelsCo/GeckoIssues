@@ -67,7 +67,7 @@ struct RepositoriesSettingsTab: View {
                     Section {
                         ForEach(group.repos, id: \.id) { repo in
                             HStack(spacing: 8) {
-                                Image(systemName: repo.isPrivate ? "lock" : "folder")
+                                Image(systemName: repo.isPrivate ? "lock" : "book.closed")
                                     .font(.system(size: 13))
                                     .foregroundStyle(.secondary)
                                     .frame(width: 16)
@@ -82,12 +82,13 @@ struct RepositoriesSettingsTab: View {
                             AccountAvatar(
                                 login: group.login,
                                 avatarURL: group.avatarURL,
-                                size: 16
+                                size: 20
                             )
-                            Text(group.login.uppercased())
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.secondary)
+                            Text(group.login)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.primary)
                         }
+                        .padding(.bottom, 4)
                     }
                 }
             }
@@ -129,7 +130,7 @@ struct RepositoriesSettingsTab: View {
     private var detailPane: some View {
         if let repo = selectedRepo {
             VStack(spacing: 8) {
-                Image(systemName: repo.isPrivate ? "lock.shield" : "folder")
+                Image(systemName: repo.isPrivate ? "lock" : "book.closed")
                     .font(.system(size: 32))
                     .foregroundStyle(.secondary)
                 Text(repo.nameWithOwner)
