@@ -1,105 +1,36 @@
 import SwiftUI
 
 /// Settings tab for managing the GitHub connection.
+///
+/// When connected, shows a green checkmark with Disconnect/Reauthorize actions.
+/// When disconnected or reauthorizing, shows the 3-step auth stepper inline.
 struct GitHubSettingsTab: View {
     var authStore: AuthStore
 
+    @FocusState private var signInButtonFocused: Bool
+
     var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-
-            switch authStore.state {
-            case .unauthenticated:
-                disconnectedView
-            case .authorizing(let userCode, _):
-                authorizingView(userCode: userCode)
-            case .authenticated(let username):
-                connectedView(username: username)
-            }
-
-            if let error = authStore.errorMessage {
-                Text(error)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
-            }
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Disconnected
-
-    private var disconnectedView: some View {
-        Group {
-            Image(systemName: "arrow.triangle.branch")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
-
-            Text("Connect to GitHub")
-                .font(.system(size: 15, weight: .semibold))
-
-            Text("Sign in with your GitHub account to sync repositories and issues.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-
-            Button("Sign In with GitHub") {
-                authStore.signIn()
-            }
-            .accessibilityLabel("Sign in with GitHub")
-        }
-    }
-
-    // MARK: - Authorizing
-
-    private func authorizingView(userCode: String) -> some View {
-        Group {
-            ProgressView()
-                .controlSize(.small)
-
-            Text("Enter this code on GitHub")
-                .font(.system(size: 15, weight: .semibold))
-
-            Text(userCode)
-                .font(.system(size: 28, weight: .bold, design: .monospaced))
-                .textSelection(.enabled)
-                .accessibilityLabel("Device code: \(userCode)")
-
-            Text("A browser window has opened to github.com.\nPaste the code above to sign in.")
-                .font(.system(size: 13))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-
-            HStack(spacing: 12) {
-                Button("Copy Code") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(userCode, forType: .string)
-                }
-                .accessibilityLabel("Copy device code to clipboard")
-
-                Button("Cancel") {
-                    authStore.cancelSignIn()
-                }
-                .accessibilityLabel("Cancel sign in")
-            }
+        if authStore.isAuthenticated {
+            connectedView
+        } else {
+            stepperView
         }
     }
 
     // MARK: - Connected
 
-    private func connectedView(username: String) -> some View {
-        Group {
+    private var connectedView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 40))
                 .foregroundStyle(.green)
 
-            Text("Connected as @\(username)")
-                .font(.system(size: 15, weight: .semibold))
+            if case .authenticated(let username) = authStore.state {
+                Text("Connected as @\(username)")
+                    .font(.system(size: 15, weight: .semibold))
+            }
 
             HStack(spacing: 12) {
                 Button("Disconnect") {
@@ -112,6 +43,147 @@ struct GitHubSettingsTab: View {
                     authStore.signIn()
                 }
                 .accessibilityLabel("Reauthorize GitHub connection")
+            }
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Stepper
+
+    private var stepperView: some View {
+        VStack(spacing: 0) {
+            Text("Connect to GitHub")
+                .font(.system(size: 15, weight: .semibold))
+                .padding(.top, 32)
+
+            Spacer().frame(height: 32)
+
+            VStack(alignment: .leading, spacing: 0) {
+                AuthStepRow(
+                    number: 1,
+                    title: "Sign in",
+                    state: step1State,
+                    isLast: false
+                ) {
+                    authenticateContent
+                }
+
+                AuthStepRow(
+                    number: 2,
+                    title: "Enter code",
+                    state: step2State,
+                    isLast: false
+                ) {
+                    enterCodeContent
+                }
+
+                AuthStepRow(
+                    number: 3,
+                    title: "Authorize device",
+                    state: step3State,
+                    isLast: true
+                ) {
+                    if case .authenticated(let username) = authStore.state {
+                        Text("Successfully connected as \(username).")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.leading, 40)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Step States
+
+    private var step1State: AuthStepState {
+        switch authStore.state {
+        case .unauthenticated: .active
+        case .authorizing, .authenticated: .completed
+        }
+    }
+
+    private var step2State: AuthStepState {
+        switch authStore.state {
+        case .unauthenticated: .upcoming
+        case .authorizing: .active
+        case .authenticated: .completed
+        }
+    }
+
+    private var step3State: AuthStepState {
+        switch authStore.state {
+        case .unauthenticated: .upcoming
+        case .authorizing: .waiting
+        case .authenticated: .completed
+        }
+    }
+
+    // MARK: - Step Content
+
+    @ViewBuilder
+    private var authenticateContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Open your browser, sign in, then return here to get your code.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button("Sign in with GitHub") {
+                    authStore.signIn()
+                }
+                .controlSize(.large)
+                .accessibilityLabel("Sign in with GitHub")
+                .disabled(step1State == .completed)
+                .focused($signInButtonFocused)
+
+                if step1State == .completed {
+                    Button {
+                        authStore.signOut()
+                        signInButtonFocused = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.circlepath")
+                            Text("Restart")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Restart sign-in")
+                }
+            }
+
+            if let error = authStore.errorMessage {
+                Text(error)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var enterCodeContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("After signing in, enter this code when prompted:")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                if case .authorizing(let userCode, _) = authStore.state {
+                    Text(userCode)
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .textSelection(.enabled)
+                        .accessibilityLabel("Authorization code: \(userCode)")
+                    CopyButton(value: userCode)
+                } else {
+                    Text("XXXX-XXXX")
+                        .font(.system(size: 22, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
     }

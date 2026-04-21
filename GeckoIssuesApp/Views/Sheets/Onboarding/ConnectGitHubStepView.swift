@@ -176,7 +176,7 @@ enum AuthStepState {
     case completed  // green checkmark
 }
 
-private struct AuthStepRow<Content: View>: View {
+struct AuthStepRow<Content: View>: View {
     let number: Int
     let title: String
     let state: AuthStepState
