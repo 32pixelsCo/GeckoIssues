@@ -101,10 +101,18 @@ struct GitHubSettingsTab: View {
             Text("Connected as @\(username)")
                 .font(.system(size: 15, weight: .semibold))
 
-            Button("Sign Out") {
-                authStore.signOut()
+            HStack(spacing: 12) {
+                Button("Disconnect") {
+                    authStore.signOut()
+                }
+                .accessibilityLabel("Disconnect GitHub account")
+
+                Button("Reauthorize") {
+                    authStore.signOut()
+                    authStore.signIn()
+                }
+                .accessibilityLabel("Reauthorize GitHub connection")
             }
-            .accessibilityLabel("Sign out of GitHub")
         }
     }
 }
