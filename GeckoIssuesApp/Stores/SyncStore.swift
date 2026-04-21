@@ -147,11 +147,13 @@ final class SyncStore {
 
                 // Step 2b: Discover org accounts and fetch their repos directly
                 var seenRepoIds = Set(repos.map(\.databaseId))
-                let orgLogins = Set(
+                let orgLoginsFromRepos = Set(
                     repos
                         .filter { $0.owner.typeName == "Organization" }
                         .map(\.owner.login)
                 )
+                let orgLoginsFromMemberships = Set(orgAccounts.map(\.login))
+                let orgLogins = orgLoginsFromRepos.union(orgLoginsFromMemberships)
                 for orgLogin in orgLogins {
                     try Task.checkCancellation()
                     do {
