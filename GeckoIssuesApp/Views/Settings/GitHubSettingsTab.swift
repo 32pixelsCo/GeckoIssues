@@ -32,18 +32,10 @@ struct GitHubSettingsTab: View {
                     .font(.system(size: 15, weight: .semibold))
             }
 
-            HStack(spacing: 12) {
-                Button("Disconnect") {
-                    authStore.signOut()
-                }
-                .accessibilityLabel("Disconnect GitHub account")
-
-                Button("Reauthorize") {
-                    authStore.signOut()
-                    authStore.signIn()
-                }
-                .accessibilityLabel("Reauthorize GitHub connection")
+            Button("Reauthorize") {
+                authStore.signOut()
             }
+            .accessibilityLabel("Reauthorize GitHub connection")
 
             Spacer()
         }
