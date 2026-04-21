@@ -43,8 +43,7 @@ struct SyncingStepView: View {
             .padding(.bottom, 24)
         }
         .task {
-            guard case .idle = syncStore.state,
-                  let token = authStore.accessToken else { return }
+            guard let token = authStore.accessToken else { return }
             syncStore.startSyncForRepos(repoIds: selectedRepoIds, token: token)
         }
     }
