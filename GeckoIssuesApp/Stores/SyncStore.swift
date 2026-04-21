@@ -244,10 +244,12 @@ final class SyncStore {
                 try ownerAccount.save(db)
             }
 
-            // Upsert repositories; preserve existing tracked flag unless explicitly overridden
+            // Upsert repositories; tracked is additive — newly selected repos
+            // are marked tracked without unmarking previously tracked repos.
             for repo in repos {
-                let shouldTrack = trackedRepoIds.map { $0.contains(repo.databaseId) }
+                let isNewlySelected = trackedRepoIds?.contains(repo.databaseId) == true
                 let existing = try Repository.fetchOne(db, key: repo.databaseId)
+                let wasTracked = existing?.tracked ?? false
                 var repository = Repository(
                     id: repo.databaseId,
                     accountId: repo.owner.databaseId,
@@ -257,7 +259,7 @@ final class SyncStore {
                     description: repo.description,
                     url: repo.url,
                     syncedAt: existing?.syncedAt,
-                    tracked: shouldTrack ?? existing?.tracked ?? false
+                    tracked: isNewlySelected || wasTracked
                 )
                 try repository.save(db)
             }

@@ -133,7 +133,7 @@ private struct RepositoryRow: View {
     var repository: Repository
 
     var body: some View {
-        SwiftUI.Label(repository.name, systemImage: repository.isPrivate ? "lock" : "folder")
+        SwiftUI.Label(repository.name, systemImage: repository.isPrivate ? "lock" : "book.closed")
             .accessibilityLabel("\(repository.name)\(repository.isPrivate ? ", private" : "")")
     }
 }
