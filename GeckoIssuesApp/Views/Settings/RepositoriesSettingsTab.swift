@@ -224,6 +224,12 @@ struct RepositoriesSettingsTab: View {
                 """)
             }
 
+            // Clear app selections if the deleted repo was active
+            if appStore.selectedRepository?.id == repoId {
+                appStore.selectedIssue = nil
+                appStore.selectedRepository = nil
+            }
+
             selectedRepoId = nil
             await loadTrackedRepos()
             await appStore.loadAccounts(from: database)

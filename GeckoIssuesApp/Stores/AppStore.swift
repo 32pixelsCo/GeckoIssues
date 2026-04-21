@@ -23,8 +23,8 @@ final class AppStore {
                     )
                     .fetchAll(db)
             }
-            // Auto-select first account if none selected
-            if selectedAccount == nil {
+            // Auto-select first account if none selected or current was removed
+            if selectedAccount == nil || !accounts.contains(where: { $0.id == selectedAccount?.id }) {
                 selectedAccount = accounts.first
             }
         } catch {
