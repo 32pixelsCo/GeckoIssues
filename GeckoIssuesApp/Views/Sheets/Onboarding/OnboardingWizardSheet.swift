@@ -29,6 +29,7 @@ struct OnboardingWizardSheet: View {
     var appStore: AppStore
     var database: AppDatabase
     var startStep: WizardStep = .connectGitHub
+    var alreadyTrackedRepoIds: Set<Int64> = []
 
     @Environment(\.dismiss) private var dismiss
 
@@ -66,6 +67,7 @@ struct OnboardingWizardSheet: View {
                     authStore: authStore,
                     syncService: syncService,
                     selectedRepoIds: $selectedRepoIds,
+                    alreadyTrackedRepoIds: alreadyTrackedRepoIds,
                     onBack: {
                         if startStep == .selectRepos {
                             dismiss()

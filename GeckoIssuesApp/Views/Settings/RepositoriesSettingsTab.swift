@@ -39,7 +39,8 @@ struct RepositoriesSettingsTab: View {
                 syncStore: syncStore,
                 appStore: appStore,
                 database: database,
-                startStep: .selectRepos
+                startStep: .selectRepos,
+                alreadyTrackedRepoIds: trackedRepoIds
             )
         }
         .alert(
@@ -150,6 +151,10 @@ struct RepositoriesSettingsTab: View {
     private var selectedRepo: Repository? {
         guard let id = selectedRepoId else { return nil }
         return accountGroups.flatMap(\.repos).first { $0.id == id }
+    }
+
+    private var trackedRepoIds: Set<Int64> {
+        Set(accountGroups.flatMap(\.repos).map(\.id))
     }
 
     // MARK: - Data Loading

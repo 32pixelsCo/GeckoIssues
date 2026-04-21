@@ -17,6 +17,7 @@ struct SelectReposStepView: View {
     var authStore: AuthStore
     var syncService: any SyncServiceProtocol
     @Binding var selectedRepoIds: Set<Int64>
+    var alreadyTrackedRepoIds: Set<Int64> = []
     var onBack: () -> Void
     var onContinue: () -> Void
 
@@ -115,7 +116,8 @@ struct SelectReposStepView: View {
                             ForEach(group.repos) { repo in
                                 RepoRow(
                                     repo: repo,
-                                    isSelected: selectedRepoIds.contains(repo.id),
+                                    isSelected: selectedRepoIds.contains(repo.id) || alreadyTrackedRepoIds.contains(repo.id),
+                                    isDisabled: alreadyTrackedRepoIds.contains(repo.id),
                                     onToggle: { toggleRepo(repo.id) }
                                 )
                             }
@@ -262,6 +264,7 @@ private struct AccountHeader: View {
 private struct RepoRow: View {
     var repo: RepoOption
     var isSelected: Bool
+    var isDisabled: Bool = false
     var onToggle: () -> Void
 
     var body: some View {
@@ -280,10 +283,12 @@ private struct RepoRow: View {
                 Spacer()
             }
             .contentShape(Rectangle())
+            .opacity(isDisabled ? 0.4 : 1.0)
         }
         .buttonStyle(.plain)
+        .disabled(isDisabled)
         .padding(.vertical, 2)
-        .accessibilityLabel("\(repo.name)\(repo.isPrivate ? ", private" : "")\(isSelected ? ", selected" : ", not selected")")
+        .accessibilityLabel("\(repo.name)\(repo.isPrivate ? ", private" : "")\(isDisabled ? ", already added" : isSelected ? ", selected" : ", not selected")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
