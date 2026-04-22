@@ -25,9 +25,9 @@ Issues within each milestone are ordered so the app never feels broken mid-miles
 
 End state: open the app, complete a guided setup, pick your org and repos, and their issues stay current automatically.
 
-- [ ] Onboarding wizard — 4-step wizard on first launch: (1) Connect GitHub via OAuth, (2) Select your first org, (3) Select repos to sync, (4) Initial sync
-- [ ] Settings — add/remove organizations; adding an org reuses the onboarding wizard from step 2
-- [ ] Selective sync — only sync repos you've added
+- [x] Onboarding wizard — 4-step wizard on first launch: (1) Connect GitHub via OAuth, (2) Select your first org, (3) Select repos to sync, (4) Initial sync
+- [x] Settings — add/remove organizations; adding an org reuses the onboarding wizard from step 2
+- [x] Selective sync — only sync repos you've added
 - [ ] Incremental sync — use `updatedAt` cursors instead of full re-fetch
 - [ ] Background refresh — poll on a configurable interval while app is active
 - [ ] Sync status indicator — show sync state (idle / syncing / error / offline) in the UI
