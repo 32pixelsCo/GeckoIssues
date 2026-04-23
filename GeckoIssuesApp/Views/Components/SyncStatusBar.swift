@@ -37,7 +37,7 @@ struct SyncStatusBar: View {
             ProgressView()
                 .controlSize(.mini)
         case .completed:
-            Image(systemName: "checkmark.circle.fill")
+            Image(systemName: "checkmark.icloud")
                 .font(.system(size: 11))
                 .foregroundStyle(.green)
         case .error:
