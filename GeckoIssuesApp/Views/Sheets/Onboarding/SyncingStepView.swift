@@ -122,6 +122,8 @@ struct SyncingStepView: View {
             return "Fetching account..."
         case .fetchingRepositories:
             return "Fetching repositories..."
+        case .checkingForUpdates:
+            return "Checking for updates..."
         case .syncingRepository(let name):
             if progress.repositoriesTotal > 0 {
                 return "\(name) · Syncing issues (\(progress.repositoriesSynced) of \(progress.repositoriesTotal))"

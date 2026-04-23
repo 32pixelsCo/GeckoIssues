@@ -24,6 +24,7 @@ final class SyncStore {
     enum SyncPhase: Equatable {
         case fetchingAccount
         case fetchingRepositories
+        case checkingForUpdates
         case syncingRepository(String)
     }
 
@@ -105,7 +106,19 @@ final class SyncStore {
                 let repoEntries = trackedRepos.map {
                     (id: $0.id, nameWithOwner: $0.nameWithOwner, syncedAt: force ? nil : $0.syncedAt)
                 }
-                try await syncIssues(for: repoEntries, token: token)
+
+                // Repos with a syncedAt cursor can be batched into a single request
+                let incrementalRepos = repoEntries.filter { $0.syncedAt != nil }
+                let fullSyncRepos = repoEntries.filter { $0.syncedAt == nil }
+
+                if !incrementalRepos.isEmpty {
+                    try await syncIssuesBatched(incrementalRepos, token: token, totalRepos: repoEntries.count)
+                }
+
+                // Repos without a cursor need individual full fetches
+                if !fullSyncRepos.isEmpty {
+                    try await syncIssues(for: fullSyncRepos, token: token)
+                }
 
                 state = .completed(Date())
                 logger.info("Sync completed")
@@ -264,6 +277,65 @@ final class SyncStore {
     }
 
     // MARK: - Private Sync
+
+    /// Fetch issues for multiple repos in a single GraphQL request.
+    ///
+    /// Sends one batched query for all incremental repos. For repos where
+    /// the first page has `hasNextPage`, falls back to individual paginated
+    /// fetches for the remaining pages.
+    private func syncIssuesBatched(
+        _ repos: [(id: Int64, nameWithOwner: String, syncedAt: Date?)],
+        token: String,
+        totalRepos: Int
+    ) async throws {
+        state = .syncing(SyncProgress(
+            phase: .checkingForUpdates,
+            repositoriesSynced: 0,
+            repositoriesTotal: totalRepos
+        ))
+
+        let batchInput = repos.map { repo -> (owner: String, name: String, since: Date) in
+            let parts = repo.nameWithOwner.split(separator: "/", maxSplits: 1)
+            return (owner: String(parts[0]), name: String(parts[1]), since: repo.syncedAt!)
+        }
+
+        logger.info("Batched incremental sync for \(repos.count) repos (single request)")
+        let results = try await syncService.fetchIssuesBatched(repos: batchInput, token: token)
+        try Task.checkCancellation()
+
+        for (index, result) in results.enumerated() {
+            try Task.checkCancellation()
+            let repo = repos[index]
+
+            state = .syncing(SyncProgress(
+                phase: .syncingRepository(repo.nameWithOwner),
+                repositoriesSynced: index,
+                repositoriesTotal: totalRepos
+            ))
+
+            var allIssues = result.issues
+
+            // If the first page wasn't enough, fetch remaining pages individually
+            if result.hasNextPage, let cursor = result.endCursor {
+                let parts = repo.nameWithOwner.split(separator: "/", maxSplits: 1)
+                logger.info("Fetching additional pages for \(repo.nameWithOwner)")
+                let remaining = try await syncService.fetchIssues(
+                    owner: String(parts[0]),
+                    name: String(parts[1]),
+                    since: repo.syncedAt,
+                    token: token
+                )
+                // The individual fetch re-fetches all pages; merge by deduplicating
+                let batchedIds = Set(allIssues.map(\.databaseId))
+                allIssues.append(contentsOf: remaining.filter { !batchedIds.contains($0.databaseId) })
+            }
+
+            if !allIssues.isEmpty {
+                logger.info("Persisting \(allIssues.count) issues for \(repo.nameWithOwner)")
+            }
+            try await persistIssues(allIssues, repositoryId: repo.id)
+        }
+    }
 
     /// Fetch and persist issues for the given repos, updating sync progress.
     ///

@@ -79,6 +79,8 @@ struct SyncStatusBar: View {
             return "Connecting to GitHub\u{2026}"
         case .fetchingRepositories:
             return "Fetching repositories\u{2026}"
+        case .checkingForUpdates:
+            return "Checking for updates\u{2026}"
         case .syncingRepository(let name):
             if progress.repositoriesTotal > 1 {
                 return "Syncing \(name) (\(progress.repositoriesSynced + 1) of \(progress.repositoriesTotal))"
