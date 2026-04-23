@@ -51,6 +51,7 @@ final class SyncStore {
     ) {
         self.database = database
         self.syncService = syncService
+        restoreLastSyncDate()
     }
 
     /// Preview initializer — sets an explicit initial state without a real database or service.
@@ -58,6 +59,16 @@ final class SyncStore {
         self.database = try! AppDatabase.inMemory()
         self.syncService = GitHubSyncService()
         self.state = previewState
+    }
+
+    private func restoreLastSyncDate() {
+        if let lastSynced = try? database.dbQueue.read({ db in
+            try Date.fetchOne(db, sql: """
+                SELECT MAX(syncedAt) FROM repositories WHERE tracked = 1 AND syncedAt IS NOT NULL
+                """)
+        }) {
+            state = .completed(lastSynced)
+        }
     }
 
     // MARK: - Sync
