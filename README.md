@@ -4,6 +4,8 @@
 
 GeckoIssues gives GitHub Issues and Projects a beautiful, modern interface. It mirrors GitHub's data model faithfully — no invented abstractions, just a dramatically better experience. Offline-capable with a companion CLI for LLM workflows.
 
+<img src="/GeckoIssues%20Icon/gecko.png" alt="Gecko" width="512" height="512" />
+
 ---
 
 ## Quick Start
