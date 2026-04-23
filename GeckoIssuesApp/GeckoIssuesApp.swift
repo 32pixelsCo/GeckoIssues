@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct GeckoIssuesApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var appStore = AppStore()
     @State private var navigationStore = NavigationStore()
     @State private var authStore = AuthStore()
@@ -33,5 +34,11 @@ struct GeckoIssuesApp: App {
                 database: database
             )
         }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
     }
 }
