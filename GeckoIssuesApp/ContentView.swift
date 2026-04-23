@@ -20,6 +20,7 @@ struct ContentView: View {
                         .frame(minWidth: 200, idealWidth: 300)
                     issueDetailColumn
                 }
+                .frame(maxHeight: .infinity)
                 SyncStatusBar(syncStore: syncStore, authStore: authStore)
             }
         }
