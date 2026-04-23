@@ -61,7 +61,7 @@ struct SyncStatusBar: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         case .completed(let date):
-            Text("Last synced \(date, format: .relative(presentation: .named))")
+            Text("Synced \(date, format: .relative(presentation: .named))")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         case .error(let message):
