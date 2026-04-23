@@ -28,8 +28,46 @@ struct MockSyncService: SyncServiceProtocol, Sendable {
         orgRepositories[login] ?? []
     }
 
-    func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData] {
+    func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData] {
         issuesByRepo["\(owner)/\(name)"] ?? []
+    }
+}
+
+/// Mock that records `since` values passed to `fetchIssues` for verification.
+final class SpySyncService: SyncServiceProtocol, @unchecked Sendable {
+    let base: MockSyncService
+    private let lock = NSLock()
+    private var _sinceValues: [String: Date?] = [:]
+
+    var sinceValues: [String: Date?] {
+        lock.withLock { _sinceValues }
+    }
+
+    init(base: MockSyncService) {
+        self.base = base
+    }
+
+    func fetchViewer(token: String) async throws -> GitHubSyncService.ViewerData {
+        base.viewer
+    }
+
+    func fetchViewerWithOrganizations(token: String) async throws -> GitHubSyncService.ViewerWithOrganizationsData {
+        try await base.fetchViewerWithOrganizations(token: token)
+    }
+
+    func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData] {
+        base.repositories
+    }
+
+    func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData] {
+        base.orgRepositories[login] ?? []
+    }
+
+    func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData] {
+        lock.withLock {
+            _sinceValues["\(owner)/\(name)"] = since
+        }
+        return base.issuesByRepo["\(owner)/\(name)"] ?? []
     }
 }
 
@@ -52,7 +90,7 @@ struct FailingSyncService: SyncServiceProtocol, Sendable {
         throw error
     }
 
-    func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData] {
+    func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData] {
         throw error
     }
 }
@@ -620,6 +658,130 @@ struct SyncStoreTests {
             try Repository.fetchAll(db)
         }
         #expect(repos.isEmpty)
+    }
+
+    @Test("Full sync passes syncedAt as since parameter for incremental fetch")
+    @MainActor
+    func fullSyncPassesSinceCursor() async throws {
+        let db = try AppDatabase.inMemory()
+        let owner = makeOwnerData()
+        let repo = makeRepoData(id: 100, name: "hello-world", owner: owner)
+        let issue = makeIssueData(id: 400, number: 1)
+
+        // First: discovery sync to populate the repo with a syncedAt timestamp
+        let discoveryMock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo],
+            issuesByRepo: ["octocat/hello-world": [issue]]
+        )
+        let store1 = SyncStore(database: db, syncService: discoveryMock)
+        store1.startSyncForRepos(repoIds: [100], token: "token")
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store1.state { break }
+            if case .error(let msg) = store1.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Verify repo has syncedAt set
+        let repoAfterDiscovery = try await db.dbQueue.read { db in
+            try Repository.fetchOne(db, key: 100 as Int64)
+        }
+        #expect(repoAfterDiscovery?.syncedAt != nil)
+        let syncedAt = repoAfterDiscovery!.syncedAt!
+
+        // Second: full sync with spy to verify since is passed
+        let spyBase = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo],
+            issuesByRepo: ["octocat/hello-world": [issue]]
+        )
+        let spy = SpySyncService(base: spyBase)
+        let store2 = SyncStore(database: db, syncService: spy)
+        store2.startFullSync(token: "token")
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store2.state { break }
+            if case .error(let msg) = store2.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Verify since was passed with the syncedAt value
+        let sinceValue = spy.sinceValues["octocat/hello-world"]
+        #expect(sinceValue != nil) // The key exists
+        #expect(sinceValue! != nil) // The Date? value is non-nil
+        // The since date should match the syncedAt from the first sync
+        let timeDifference = abs(sinceValue!!.timeIntervalSince(syncedAt))
+        #expect(timeDifference < 1.0) // Within 1 second
+    }
+
+    @Test("Discovery sync passes nil since (full fetch)")
+    @MainActor
+    func discoverySyncPassesNilSince() async throws {
+        let db = try AppDatabase.inMemory()
+        let repo = makeRepoData(id: 100, name: "hello-world")
+        let issue = makeIssueData(id: 400, number: 1)
+
+        let spyBase = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo],
+            issuesByRepo: ["octocat/hello-world": [issue]]
+        )
+        let spy = SpySyncService(base: spyBase)
+        let store = SyncStore(database: db, syncService: spy)
+        store.startSyncForRepos(repoIds: [100], token: "token")
+
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store.state { break }
+            if case .error(let msg) = store.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Discovery sync should always pass nil since (full fetch)
+        let sinceValue = spy.sinceValues["octocat/hello-world"]
+        #expect(sinceValue != nil) // The key exists
+        #expect(sinceValue! == nil) // The Date? value is nil (full fetch)
+    }
+
+    @Test("Force full sync ignores syncedAt cursor")
+    @MainActor
+    func forceSyncIgnoresCursor() async throws {
+        let db = try AppDatabase.inMemory()
+        let owner = makeOwnerData()
+        let repo = makeRepoData(id: 100, name: "hello-world", owner: owner)
+        let issue = makeIssueData(id: 400, number: 1)
+
+        // First: discovery sync to set syncedAt
+        let discoveryMock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo],
+            issuesByRepo: ["octocat/hello-world": [issue]]
+        )
+        let store1 = SyncStore(database: db, syncService: discoveryMock)
+        store1.startSyncForRepos(repoIds: [100], token: "token")
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store1.state { break }
+            if case .error(let msg) = store1.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Second: force full sync — should pass nil since
+        let spyBase = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo],
+            issuesByRepo: ["octocat/hello-world": [issue]]
+        )
+        let spy = SpySyncService(base: spyBase)
+        let store2 = SyncStore(database: db, syncService: spy)
+        store2.startFullSync(token: "token", force: true)
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store2.state { break }
+            if case .error(let msg) = store2.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Force should ignore the cursor and pass nil
+        let sinceValue = spy.sinceValues["octocat/hello-world"]
+        #expect(sinceValue != nil) // The key exists
+        #expect(sinceValue! == nil) // The Date? value is nil (forced full fetch)
     }
 }
 

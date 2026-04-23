@@ -13,7 +13,7 @@ struct ContentView: View {
                 .navigationTitle("Repositories")
         } content: {
             if appStore.selectedRepository != nil {
-                IssueListView(appStore: appStore, syncStore: syncStore, database: database)
+                IssueListView(appStore: appStore, authStore: authStore, syncStore: syncStore, database: database)
             } else {
                 ContentUnavailableView(
                     "Select a Repository",

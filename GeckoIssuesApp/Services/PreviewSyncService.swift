@@ -46,7 +46,7 @@ struct PreviewSyncService: SyncServiceProtocol {
         orgRepos[login] ?? personalRepos
     }
 
-    func fetchIssues(owner: String, name: String, token: String) async throws -> [GitHubSyncService.IssueData] {
+    func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData] {
         []
     }
 }
