@@ -10,32 +10,31 @@ struct ContentView: View {
     @AppStorage("backgroundRefreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
 
     var body: some View {
-        VStack(spacing: 0) {
-            NavigationSplitView {
-                RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
-                    .navigationTitle("Repositories")
-            } content: {
-                if appStore.selectedRepository != nil {
-                    IssueListView(appStore: appStore, syncStore: syncStore, database: database)
-                } else {
-                    ContentUnavailableView(
-                        "Select a Repository",
-                        systemImage: "folder",
-                        description: Text("Choose a repository from the sidebar.")
-                    )
-                }
-            } detail: {
-                if let issue = appStore.selectedIssue {
-                    IssueDetailView(issue: issue, database: database)
-                } else {
-                    ContentUnavailableView(
-                        "No Issue Selected",
-                        systemImage: "doc.text",
-                        description: Text("Select an issue to view its details.")
-                    )
-                }
+        NavigationSplitView {
+            RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
+                .navigationTitle("Repositories")
+        } content: {
+            if appStore.selectedRepository != nil {
+                IssueListView(appStore: appStore, syncStore: syncStore, database: database)
+            } else {
+                ContentUnavailableView(
+                    "Select a Repository",
+                    systemImage: "folder",
+                    description: Text("Choose a repository from the sidebar.")
+                )
             }
-
+        } detail: {
+            if let issue = appStore.selectedIssue {
+                IssueDetailView(issue: issue, database: database)
+            } else {
+                ContentUnavailableView(
+                    "No Issue Selected",
+                    systemImage: "doc.text",
+                    description: Text("Select an issue to view its details.")
+                )
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             SyncStatusBar(syncStore: syncStore, authStore: authStore)
         }
         .sheet(item: Bindable(navigationStore).activeSheet) { route in
