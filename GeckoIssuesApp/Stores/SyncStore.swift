@@ -41,6 +41,7 @@ final class SyncStore {
     // MARK: - Internal
 
     private var syncTask: Task<Void, Never>?
+    private var refreshTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -216,6 +217,39 @@ final class SyncStore {
     func cancelSync() {
         syncTask?.cancel()
         syncTask = nil
+    }
+
+    // MARK: - Background Refresh
+
+    /// Start periodic background sync on the given interval.
+    ///
+    /// Each tick triggers an incremental sync via `startFullSync`. If a sync
+    /// is already in progress the tick is skipped. Call `stopBackgroundRefresh()`
+    /// when the app resigns active.
+    func startBackgroundRefresh(interval: TimeInterval, token: String) {
+        stopBackgroundRefresh()
+        logger.info("Background refresh started (interval: \(interval)s)")
+
+        refreshTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled else { break }
+
+                if case .syncing = state {
+                    logger.info("Background refresh skipped — sync already in progress")
+                    continue
+                }
+
+                logger.info("Background refresh triggered")
+                startFullSync(token: token)
+            }
+        }
+    }
+
+    /// Stop the periodic background refresh timer.
+    func stopBackgroundRefresh() {
+        refreshTask?.cancel()
+        refreshTask = nil
     }
 
     // MARK: - Private Sync

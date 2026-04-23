@@ -7,6 +7,8 @@ struct ContentView: View {
     var authStore: AuthStore
     var database: AppDatabase
 
+    @AppStorage("backgroundRefreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
+
     var body: some View {
         NavigationSplitView {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
@@ -48,6 +50,21 @@ struct ContentView: View {
                 navigationStore.activeSheet = .onboarding
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            startBackgroundRefreshIfAuthenticated()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
+            syncStore.stopBackgroundRefresh()
+        }
+        .onChange(of: refreshInterval) {
+            startBackgroundRefreshIfAuthenticated()
+        }
     }
 
+    // MARK: - Background Refresh
+
+    private func startBackgroundRefreshIfAuthenticated() {
+        guard let token = authStore.accessToken else { return }
+        syncStore.startBackgroundRefresh(interval: TimeInterval(refreshInterval), token: token)
+    }
 }
