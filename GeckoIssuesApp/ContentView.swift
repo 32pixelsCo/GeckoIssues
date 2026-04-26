@@ -8,25 +8,25 @@ struct ContentView: View {
     var database: AppDatabase
 
     @AppStorage("backgroundRefreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
-    @State private var sidebarTrailingEdge: CGFloat = 0
+    @State private var contentLeadingEdge: CGFloat = 0
 
     var body: some View {
         NavigationSplitView {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
                 .navigationTitle("Repositories")
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: SidebarTrailingEdgeKey.self,
-                            value: geo.frame(in: .named("splitView")).maxX
-                        )
-                    }
-                )
         } content: {
             issueListColumn
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     Color.clear.frame(height: 28)
                 }
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: ContentLeadingEdgeKey.self,
+                            value: geo.frame(in: .named("splitView")).minX
+                        )
+                    }
+                )
         } detail: {
             issueDetailColumn
                 .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -34,10 +34,10 @@ struct ContentView: View {
                 }
         }
         .coordinateSpace(name: "splitView")
-        .onPreferenceChange(SidebarTrailingEdgeKey.self) { sidebarTrailingEdge = $0 }
+        .onPreferenceChange(ContentLeadingEdgeKey.self) { contentLeadingEdge = $0 }
         .overlay(alignment: .bottom) {
             SyncStatusBar(syncStore: syncStore, authStore: authStore)
-                .padding(.leading, sidebarTrailingEdge)
+                .padding(.leading, contentLeadingEdge)
         }
         .sheet(item: Bindable(navigationStore).activeSheet) { route in
             switch route {
@@ -104,7 +104,7 @@ struct ContentView: View {
 
 // MARK: - Preference Key
 
-private struct SidebarTrailingEdgeKey: PreferenceKey {
+private struct ContentLeadingEdgeKey: PreferenceKey {
     nonisolated(unsafe) static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
