@@ -13,17 +13,18 @@ struct ContentView: View {
         NavigationSplitView {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
                 .navigationTitle("Repositories")
-        } detail: {
-            VStack(spacing: 0) {
-                HSplitView {
-                    issueListColumn
-                        .frame(minWidth: 200, idealWidth: 250, maxWidth: 350, maxHeight: .infinity, alignment: .top)
-                    issueDetailColumn
-                        .frame(maxHeight: .infinity, alignment: .top)
+        } content: {
+            issueListColumn
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    SyncStatusBar(syncStore: syncStore, authStore: authStore)
                 }
-                .frame(maxHeight: .infinity)
-                SyncStatusBar(syncStore: syncStore, authStore: authStore)
-            }
+        } detail: {
+            issueDetailColumn
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    // Invisible spacer matching the status bar height so content
+                    // and detail columns align at the bottom.
+                    Color.clear.frame(height: 28)
+                }
         }
         .sheet(item: Bindable(navigationStore).activeSheet) { route in
             switch route {
