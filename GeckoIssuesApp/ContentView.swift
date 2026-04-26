@@ -8,23 +8,36 @@ struct ContentView: View {
     var database: AppDatabase
 
     @AppStorage("backgroundRefreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
+    @State private var sidebarTrailingEdge: CGFloat = 0
 
     var body: some View {
         NavigationSplitView {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
                 .navigationTitle("Repositories")
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(
+                            key: SidebarTrailingEdgeKey.self,
+                            value: geo.frame(in: .named("splitView")).maxX
+                        )
+                    }
+                )
         } content: {
             issueListColumn
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    SyncStatusBar(syncStore: syncStore, authStore: authStore)
+                    Color.clear.frame(height: 28)
                 }
         } detail: {
             issueDetailColumn
                 .safeAreaInset(edge: .bottom, spacing: 0) {
-                    // Invisible spacer matching the status bar height so content
-                    // and detail columns align at the bottom.
                     Color.clear.frame(height: 28)
                 }
+        }
+        .coordinateSpace(name: "splitView")
+        .onPreferenceChange(SidebarTrailingEdgeKey.self) { sidebarTrailingEdge = $0 }
+        .overlay(alignment: .bottom) {
+            SyncStatusBar(syncStore: syncStore, authStore: authStore)
+                .padding(.leading, sidebarTrailingEdge)
         }
         .sheet(item: Bindable(navigationStore).activeSheet) { route in
             switch route {
@@ -86,5 +99,14 @@ struct ContentView: View {
     private func startBackgroundRefreshIfAuthenticated() {
         guard let token = authStore.accessToken else { return }
         syncStore.startBackgroundRefresh(interval: TimeInterval(refreshInterval), token: token)
+    }
+}
+
+// MARK: - Preference Key
+
+private struct SidebarTrailingEdgeKey: PreferenceKey {
+    nonisolated(unsafe) static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
