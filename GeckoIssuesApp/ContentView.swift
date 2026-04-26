@@ -8,36 +8,21 @@ struct ContentView: View {
     var database: AppDatabase
 
     @AppStorage("backgroundRefreshInterval") private var refreshInterval = RefreshInterval.fiveMinutes.rawValue
-    @State private var contentLeadingEdge: CGFloat = 0
 
     var body: some View {
         NavigationSplitView {
             RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
                 .navigationTitle("Repositories")
-        } content: {
-            issueListColumn
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    Color.clear.frame(height: 28)
-                }
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(
-                            key: ContentLeadingEdgeKey.self,
-                            value: geo.frame(in: .named("splitView")).minX
-                        )
-                    }
-                )
         } detail: {
-            issueDetailColumn
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    Color.clear.frame(height: 28)
+            VStack(spacing: 0) {
+                NavigationSplitView {
+                    issueListColumn
+                } detail: {
+                    issueDetailColumn
                 }
-        }
-        .coordinateSpace(name: "splitView")
-        .onPreferenceChange(ContentLeadingEdgeKey.self) { contentLeadingEdge = $0 }
-        .overlay(alignment: .bottom) {
-            SyncStatusBar(syncStore: syncStore, authStore: authStore)
-                .padding(.leading, contentLeadingEdge)
+                .navigationSplitViewStyle(.balanced)
+                SyncStatusBar(syncStore: syncStore, authStore: authStore)
+            }
         }
         .sheet(item: Bindable(navigationStore).activeSheet) { route in
             switch route {
@@ -99,14 +84,5 @@ struct ContentView: View {
     private func startBackgroundRefreshIfAuthenticated() {
         guard let token = authStore.accessToken else { return }
         syncStore.startBackgroundRefresh(interval: TimeInterval(refreshInterval), token: token)
-    }
-}
-
-// MARK: - Preference Key
-
-private struct ContentLeadingEdgeKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
