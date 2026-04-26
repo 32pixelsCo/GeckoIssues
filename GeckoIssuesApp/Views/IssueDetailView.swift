@@ -122,6 +122,7 @@ struct IssueDetailView: View {
                 updatedSection
             }
             .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(width: 200)
     }

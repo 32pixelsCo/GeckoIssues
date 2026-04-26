@@ -15,12 +15,15 @@ struct ContentView: View {
                 .navigationTitle("Repositories")
         } detail: {
             VStack(spacing: 0) {
-                NavigationSplitView {
+                StableSplitView(
+                    leadingMinWidth: 200,
+                    leadingIdealWidth: 250,
+                    leadingMaxWidth: 400
+                ) {
                     issueListColumn
-                } detail: {
+                } trailing: {
                     issueDetailColumn
                 }
-                .navigationSplitViewStyle(.balanced)
                 SyncStatusBar(syncStore: syncStore, authStore: authStore)
             }
         }

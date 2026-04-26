@@ -111,6 +111,11 @@ struct IssueListView: View {
 
                 return rows.map { IssueRow(issue: $0.issue, labels: $0.labels) }
             }
+
+            // Refresh the selected issue with updated data from the database
+            if let selectedId = appStore.selectedIssue?.id {
+                appStore.selectedIssue = issues.first { $0.issue.id == selectedId }?.issue
+            }
         } catch {
             // Non-fatal; issue list stays empty
         }

@@ -255,17 +255,16 @@ final class SyncStore {
         logger.info("Background refresh started (interval: \(interval)s)")
 
         refreshTask = Task {
+            // Sync immediately on start, then wait the interval between syncs
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(interval))
-                guard !Task.isCancelled else { break }
-
                 if case .syncing = state {
                     logger.info("Background refresh skipped — sync already in progress")
-                    continue
+                } else {
+                    logger.info("Background refresh triggered")
+                    startFullSync(token: token)
                 }
 
-                logger.info("Background refresh triggered")
-                startFullSync(token: token)
+                try? await Task.sleep(for: .seconds(interval))
             }
         }
     }
