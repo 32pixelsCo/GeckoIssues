@@ -17,7 +17,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 HSplitView {
                     issueListColumn
-                        .frame(minWidth: 200, idealWidth: 300, maxWidth: 400, maxHeight: .infinity, alignment: .top)
+                        .frame(minWidth: 200, idealWidth: 250, maxWidth: 350, maxHeight: .infinity, alignment: .top)
                     issueDetailColumn
                         .frame(maxHeight: .infinity, alignment: .top)
                 }
