@@ -140,6 +140,7 @@ struct ConnectGitHubStepView: View {
                 Text(error)
                     .font(.system(size: 12))
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
