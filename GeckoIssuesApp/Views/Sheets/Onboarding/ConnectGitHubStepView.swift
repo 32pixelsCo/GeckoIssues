@@ -53,6 +53,7 @@ struct ConnectGitHubStepView: View {
                 }
             }
             .padding(.leading, 40)
+            .padding(.trailing, 32)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
