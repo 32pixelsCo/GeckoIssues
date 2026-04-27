@@ -31,7 +31,7 @@ End state: open the app, complete a guided setup, pick your org and repos, and t
 - [x] Incremental sync — use `updatedAt` cursors instead of full re-fetch
 - [x] Background refresh — poll on a configurable interval while app is active
 - [x] Sync status indicator — show sync state (idle / syncing / error / offline) in the UI
-- [ ] Online/offline detection — detect network loss, degrade gracefully to reads
+- [x] Online/offline detection — detect network loss, degrade gracefully to reads
 
 ## M3: Issue Management
 
