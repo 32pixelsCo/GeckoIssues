@@ -785,6 +785,156 @@ struct SyncStoreTests {
     }
 }
 
+// MARK: - Mock Network Monitor
+
+/// Test network monitor that lets tests control connectivity via continuations.
+final class MockNetworkMonitor: NetworkMonitorProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: AsyncStream<Bool>.Continuation?
+    private let initiallyConnected: Bool
+
+    init(connected: Bool = true) {
+        self.initiallyConnected = connected
+    }
+
+    func pathUpdates() -> AsyncStream<Bool> {
+        AsyncStream { continuation in
+            self.lock.withLock {
+                self.continuation = continuation
+            }
+            continuation.yield(self.initiallyConnected)
+        }
+    }
+
+    func setConnected(_ connected: Bool) {
+        lock.withLock {
+            continuation?.yield(connected)
+        }
+    }
+}
+
+// MARK: - Offline Detection Tests
+
+@Suite("SyncStore — Offline Detection")
+struct SyncStoreOfflineTests {
+
+    @Test("Offline network sets state to .offline")
+    @MainActor
+    func offlineNetworkSetsState() async throws {
+        let db = try AppDatabase.inMemory()
+        let mock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [],
+            issuesByRepo: [:]
+        )
+        let networkMonitor = MockNetworkMonitor(connected: false)
+        let store = SyncStore(database: db, syncService: mock, networkMonitor: networkMonitor)
+
+        store.startNetworkMonitoring()
+        try await Task.sleep(for: .milliseconds(100))
+
+        #expect(store.state == .offline)
+        #expect(store.isOffline == true)
+
+        store.stopNetworkMonitoring()
+    }
+
+    @Test("Sync attempt while offline fails fast with .offline state")
+    @MainActor
+    func syncWhileOfflineFailsFast() async throws {
+        let db = try AppDatabase.inMemory()
+        let mock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [],
+            issuesByRepo: [:]
+        )
+        let networkMonitor = MockNetworkMonitor(connected: false)
+        let store = SyncStore(database: db, syncService: mock, networkMonitor: networkMonitor)
+
+        store.startNetworkMonitoring()
+        try await Task.sleep(for: .milliseconds(100))
+
+        // Attempt sync while offline — should fail fast
+        store.startFullSync(token: "token")
+        #expect(store.state == .offline)
+
+        store.stopNetworkMonitoring()
+    }
+
+    @Test("Coming back online triggers sync automatically")
+    @MainActor
+    func comingOnlineTriggerSync() async throws {
+        let db = try AppDatabase.inMemory()
+        let owner = makeOwnerData()
+        let repo = makeRepoData(id: 100, name: "hello-world", owner: owner)
+        let issue = makeIssueData(id: 400, number: 1)
+
+        // First: discovery sync to set up tracked repos while online
+        let discoveryMock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [repo],
+            issuesByRepo: ["octocat/hello-world": [issue]]
+        )
+        let networkMonitor = MockNetworkMonitor(connected: true)
+        let store = SyncStore(database: db, syncService: discoveryMock, networkMonitor: networkMonitor)
+
+        store.startNetworkMonitoring()
+        try await Task.sleep(for: .milliseconds(50))
+
+        // Do a sync to store token and set up repos
+        store.startSyncForRepos(repoIds: [100], token: "token")
+        while true {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store.state { break }
+            if case .error(let msg) = store.state { throw SyncTestError.syncFailed(msg) }
+        }
+
+        // Go offline
+        networkMonitor.setConnected(false)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(store.state == .offline)
+
+        // Come back online — should auto-sync
+        networkMonitor.setConnected(true)
+        try await Task.sleep(for: .milliseconds(100))
+
+        // Wait for auto-sync to complete
+        for _ in 0..<40 {
+            try await Task.sleep(for: .milliseconds(50))
+            if case .completed = store.state { break }
+        }
+
+        if case .completed = store.state {
+            // Expected — auto-sync completed
+        } else {
+            #expect(Bool(false), "Expected .completed after reconnect, got \(store.state)")
+        }
+
+        store.stopNetworkMonitoring()
+    }
+
+    @Test("Discovery sync while offline fails fast")
+    @MainActor
+    func discoverySyncWhileOfflineFailsFast() async throws {
+        let db = try AppDatabase.inMemory()
+        let mock = MockSyncService(
+            viewer: makeViewerData(),
+            repositories: [],
+            issuesByRepo: [:]
+        )
+        let networkMonitor = MockNetworkMonitor(connected: false)
+        let store = SyncStore(database: db, syncService: mock, networkMonitor: networkMonitor)
+
+        store.startNetworkMonitoring()
+        try await Task.sleep(for: .milliseconds(100))
+
+        store.startSyncForRepos(repoIds: [100], token: "token")
+        #expect(store.state == .offline)
+
+        store.stopNetworkMonitoring()
+    }
+}
+
 // MARK: - Test Error
 
 private enum SyncTestError: Error {

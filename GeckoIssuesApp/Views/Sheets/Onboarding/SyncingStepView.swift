@@ -106,6 +106,16 @@ struct SyncingStepView: View {
                 .controlSize(.large)
                 .accessibilityLabel("Retry sync")
             }
+
+        case .offline:
+            VStack(spacing: 12) {
+                Image(systemName: "wifi.slash")
+                    .font(.system(size: 40))
+                    .foregroundStyle(.secondary)
+                Text("You appear to be offline. Sync will resume when the network is available.")
+                    .font(.system(size: 13))
+                    .multilineTextAlignment(.center)
+            }
         }
     }
 

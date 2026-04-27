@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import Network
 import os
 
 /// Manages GitHub sync lifecycle, background refresh, and online/offline state.
@@ -13,6 +14,7 @@ final class SyncStore {
         case syncing(SyncProgress)
         case completed(Date)
         case error(String)
+        case offline
     }
 
     struct SyncProgress: Equatable {
@@ -37,21 +39,29 @@ final class SyncStore {
 
     private let database: AppDatabase
     private let syncService: any SyncServiceProtocol
+    private let networkMonitor: any NetworkMonitorProtocol
     private let logger = Logger(subsystem: "com.32pixels.GeckoIssues", category: "SyncStore")
 
     // MARK: - Internal
 
+    private(set) var isOffline = false
     private var syncTask: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
+    private var networkTask: Task<Void, Never>?
+
+    /// Token stored for auto-reconnect sync after coming back online.
+    private var lastToken: String?
 
     // MARK: - Initialization
 
     init(
         database: AppDatabase,
-        syncService: any SyncServiceProtocol = GitHubSyncService()
+        syncService: any SyncServiceProtocol = GitHubSyncService(),
+        networkMonitor: any NetworkMonitorProtocol = NWPathMonitorWrapper()
     ) {
         self.database = database
         self.syncService = syncService
+        self.networkMonitor = networkMonitor
         restoreLastSyncDate()
     }
 
@@ -59,6 +69,7 @@ final class SyncStore {
     init(previewState: SyncState) {
         self.database = try! AppDatabase.inMemory()
         self.syncService = GitHubSyncService()
+        self.networkMonitor = NWPathMonitorWrapper()
         self.state = previewState
     }
 
@@ -85,7 +96,12 @@ final class SyncStore {
     /// `startSyncForRepos(repoIds:token:)` for that.
     func startFullSync(token: String, force: Bool = false) {
         if case .syncing = state { return }
+        if isOffline {
+            state = .offline
+            return
+        }
 
+        lastToken = token
         errorMessage = nil
         syncTask = Task {
             do {
@@ -146,7 +162,12 @@ final class SyncStore {
     /// repos via Settings.
     func startSyncForRepos(repoIds: Set<Int64>, token: String) {
         if case .syncing = state { return }
+        if isOffline {
+            state = .offline
+            return
+        }
 
+        lastToken = token
         errorMessage = nil
         syncTask = Task {
             do {
@@ -252,6 +273,7 @@ final class SyncStore {
     /// when the app resigns active.
     func startBackgroundRefresh(interval: TimeInterval, token: String) {
         stopBackgroundRefresh()
+        lastToken = token
         logger.info("Background refresh started (interval: \(interval)s)")
 
         refreshTask = Task {
@@ -273,6 +295,43 @@ final class SyncStore {
     func stopBackgroundRefresh() {
         refreshTask?.cancel()
         refreshTask = nil
+    }
+
+    // MARK: - Network Monitoring
+
+    /// Start observing network reachability. Transitions to `.offline` when
+    /// the network is unavailable and triggers an incremental sync when it
+    /// returns.
+    func startNetworkMonitoring() {
+        stopNetworkMonitoring()
+        networkTask = Task {
+            for await isConnected in networkMonitor.pathUpdates() {
+                if Task.isCancelled { break }
+                if isConnected {
+                    if isOffline {
+                        logger.info("Network restored — triggering sync")
+                        isOffline = false
+                        // Restore to last completed or idle state before auto-sync
+                        restoreLastSyncDate()
+                        if let token = lastToken {
+                            startFullSync(token: token)
+                        }
+                    }
+                } else {
+                    logger.info("Network lost — entering offline mode")
+                    isOffline = true
+                    cancelSync()
+                    stopBackgroundRefresh()
+                    state = .offline
+                }
+            }
+        }
+    }
+
+    /// Stop observing network reachability.
+    func stopNetworkMonitoring() {
+        networkTask?.cancel()
+        networkTask = nil
     }
 
     // MARK: - Private Sync
@@ -568,6 +627,32 @@ final class SyncStore {
         }
     }
 
+}
+
+// MARK: - Network Monitor Protocol
+
+/// Abstracts network reachability so tests can inject a mock.
+protocol NetworkMonitorProtocol: Sendable {
+    /// Returns an `AsyncStream` that emits `true` when the network is
+    /// reachable and `false` when it is not. The first value reflects the
+    /// current state at the time of subscription.
+    func pathUpdates() -> AsyncStream<Bool>
+}
+
+/// Production wrapper around `NWPathMonitor`.
+final class NWPathMonitorWrapper: NetworkMonitorProtocol, Sendable {
+    func pathUpdates() -> AsyncStream<Bool> {
+        AsyncStream { continuation in
+            let monitor = NWPathMonitor()
+            monitor.pathUpdateHandler = { path in
+                continuation.yield(path.status == .satisfied)
+            }
+            continuation.onTermination = { _ in
+                monitor.cancel()
+            }
+            monitor.start(queue: DispatchQueue(label: "com.32pixels.GeckoIssues.networkMonitor"))
+        }
+    }
 }
 
 // MARK: - Date Parsing Helper
