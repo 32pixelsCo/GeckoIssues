@@ -186,7 +186,7 @@ struct AuthStepRow<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(spacing: 14) {
             // Left column: indicator + connector line
             VStack(spacing: 0) {
                 indicator
@@ -199,8 +199,7 @@ struct AuthStepRow<Content: View>: View {
                         .padding(.vertical, 4)
                 }
             }
-            .frame(width: 24)
-            .frame(maxHeight: .infinity, alignment: .top)
+            .frame(width: 24, alignment: .top)
 
             // Right column: title + optional content
             VStack(alignment: .leading, spacing: 8) {
