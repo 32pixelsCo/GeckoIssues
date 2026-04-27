@@ -10,6 +10,19 @@ protocol SyncServiceProtocol: Sendable {
     func fetchRepositories(token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData]
+    func fetchIssuesBatched(repos: [(owner: String, name: String, since: Date)], token: String) async throws -> [GitHubSyncService.BatchedRepoResult]
+}
+
+extension SyncServiceProtocol {
+    /// Default implementation falls back to individual calls per repo.
+    func fetchIssuesBatched(repos: [(owner: String, name: String, since: Date)], token: String) async throws -> [GitHubSyncService.BatchedRepoResult] {
+        var results: [GitHubSyncService.BatchedRepoResult] = []
+        for repo in repos {
+            let issues = try await fetchIssues(owner: repo.owner, name: repo.name, since: repo.since, token: token)
+            results.append(GitHubSyncService.BatchedRepoResult(issues: issues, hasNextPage: false, endCursor: nil))
+        }
+        return results
+    }
 }
 
 // MARK: - Service
@@ -128,6 +141,44 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
         }
 
         return nodes.map(mapIssueNode)
+    }
+
+    // MARK: - Fetch Issues (Batched)
+
+    /// Fetch first page of issues for multiple repos in a single GraphQL request.
+    ///
+    /// Uses aliased queries (`repo_0`, `repo_1`, …) to check all repos at once.
+    /// Returns per-repo results including pagination info so callers can fetch
+    /// remaining pages individually for repos that need it.
+    func fetchIssuesBatched(
+        repos: [(owner: String, name: String, since: Date)],
+        token: String
+    ) async throws -> [BatchedRepoResult] {
+        guard !repos.isEmpty else { return [] }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+
+        let query = Queries.batchedIssues(repos: repos.enumerated().map { index, repo in
+            (index: index, owner: repo.owner, name: repo.name, since: formatter.string(from: repo.since))
+        })
+
+        let response: BatchedReposResponse = try await client.execute(
+            query: query,
+            token: token
+        )
+
+        return repos.indices.map { index in
+            let key = "repo_\(index)"
+            guard let repoNode = response.repos[key] else {
+                return BatchedRepoResult(issues: [], hasNextPage: false, endCursor: nil)
+            }
+            return BatchedRepoResult(
+                issues: repoNode.issues.nodes.map(mapIssueNode),
+                hasNextPage: repoNode.issues.pageInfo.hasNextPage,
+                endCursor: repoNode.issues.pageInfo.endCursor
+            )
+        }
     }
 
     // MARK: - Fetch Viewer + Organizations
@@ -258,6 +309,12 @@ extension GitHubSyncService {
     struct ViewerWithOrganizationsData: Sendable {
         let viewer: ViewerData
         let organizations: [OrganizationData]
+    }
+
+    struct BatchedRepoResult: Sendable {
+        let issues: [IssueData]
+        let hasNextPage: Bool
+        let endCursor: String?
     }
 
     struct IssueData: Sendable {
@@ -430,9 +487,95 @@ private struct CommentNode: Decodable, Sendable {
     let updatedAt: String
 }
 
+// MARK: - Batched Response Decoding
+
+/// Decodes a GraphQL response with dynamic alias keys (`repo_0`, `repo_1`, …).
+private struct BatchedReposResponse: Decodable, Sendable {
+    let repos: [String: RepositoryIssuesNode]
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: DynamicKey.self)
+        var repos: [String: RepositoryIssuesNode] = [:]
+        for key in container.allKeys where key.stringValue.hasPrefix("repo_") {
+            repos[key.stringValue] = try container.decode(RepositoryIssuesNode.self, forKey: key)
+        }
+        self.repos = repos
+    }
+}
+
+private struct DynamicKey: CodingKey {
+    var stringValue: String
+    var intValue: Int? { nil }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+}
+
 // MARK: - GraphQL Queries
 
 private enum Queries {
+
+    /// Build a single query that checks multiple repos for updated issues using aliases.
+    static func batchedIssues(repos: [(index: Int, owner: String, name: String, since: String)]) -> String {
+        let aliases = repos.map { repo in
+            """
+                repo_\(repo.index): repository(owner: "\(repo.owner)", name: "\(repo.name)") {
+                  issues(
+                    first: 50,
+                    states: [OPEN, CLOSED],
+                    orderBy: { field: UPDATED_AT, direction: DESC },
+                    filterBy: { since: "\(repo.since)" }
+                  ) {
+                    nodes { ...IssueFields }
+                    pageInfo { hasNextPage endCursor }
+                  }
+                }
+            """
+        }
+        return """
+        query {
+        \(aliases.joined(separator: "\n"))
+        }
+        \(issueFieldsFragment)
+        """
+    }
+
+    private static let issueFieldsFragment = """
+    fragment IssueFields on Issue {
+        databaseId
+        number
+        title
+        body
+        state
+        url
+        createdAt
+        updatedAt
+        closedAt
+        author { login }
+        milestone {
+          id
+          number
+          title
+          description
+          state
+          dueOn
+        }
+        labels(first: 100) {
+          nodes { id name color description }
+        }
+        assignees(first: 100) {
+          nodes { databaseId login avatarUrl }
+        }
+        comments(first: 100) {
+          nodes {
+            id
+            author { login }
+            body
+            createdAt
+            updatedAt
+          }
+        }
+    }
+    """
 
     static let viewerWithOrgs = """
     query {

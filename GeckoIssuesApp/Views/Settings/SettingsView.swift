@@ -3,6 +3,7 @@ import SwiftUI
 /// Settings tab identifiers.
 enum SettingsTab: String {
     case repositories
+    case sync
     case github
 }
 
@@ -27,6 +28,12 @@ struct SettingsView: View {
                 SwiftUI.Label("Repositories", systemImage: "folder")
             }
             .tag(SettingsTab.repositories.rawValue)
+
+            SyncSettingsTab()
+                .tabItem {
+                    SwiftUI.Label("Sync", systemImage: "arrow.clockwise")
+                }
+                .tag(SettingsTab.sync.rawValue)
 
             GitHubSettingsTab(authStore: authStore)
                 .tabItem {

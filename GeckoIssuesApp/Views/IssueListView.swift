@@ -4,7 +4,6 @@ import GRDB
 /// Displays issues for the selected repository in a compact list with sorting controls.
 struct IssueListView: View {
     var appStore: AppStore
-    var authStore: AuthStore
     var syncStore: SyncStore
     var database: AppDatabase
 
@@ -29,9 +28,6 @@ struct IssueListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
-                refreshButton
-            }
-            ToolbarItem(placement: .automatic) {
                 sortMenu
             }
         }
@@ -55,29 +51,6 @@ struct IssueListView: View {
         guard let repo = appStore.selectedRepository else { return "Issues" }
         let count = issues.count
         return "\(repo.name) — Issues (\(count))"
-    }
-
-    // MARK: - Refresh Button
-
-    private var refreshButton: some View {
-        Button {
-            guard let token = authStore.accessToken else { return }
-            syncStore.startFullSync(token: token)
-        } label: {
-            if case .syncing = syncStore.state {
-                ProgressView()
-                    .controlSize(.small)
-            } else {
-                SwiftUI.Label("Refresh", systemImage: "arrow.clockwise")
-            }
-        }
-        .disabled(isSyncing)
-        .accessibilityLabel("Refresh issues")
-    }
-
-    private var isSyncing: Bool {
-        if case .syncing = syncStore.state { return true }
-        return false
     }
 
     // MARK: - Sort Menu
@@ -137,6 +110,11 @@ struct IssueListView: View {
                     .fetchAll(db)
 
                 return rows.map { IssueRow(issue: $0.issue, labels: $0.labels) }
+            }
+
+            // Refresh the selected issue with updated data from the database
+            if let selectedId = appStore.selectedIssue?.id {
+                appStore.selectedIssue = issues.first { $0.issue.id == selectedId }?.issue
             }
         } catch {
             // Non-fatal; issue list stays empty
