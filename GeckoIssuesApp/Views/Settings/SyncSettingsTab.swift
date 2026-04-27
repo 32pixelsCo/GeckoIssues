@@ -4,6 +4,7 @@ import SwiftUI
 enum RefreshInterval: Int, CaseIterable, Identifiable {
     case oneMinute = 60
     case twoMinutes = 120
+    case threeMinutes = 180
     case fiveMinutes = 300
     case tenMinutes = 600
     case fifteenMinutes = 900
@@ -15,6 +16,7 @@ enum RefreshInterval: Int, CaseIterable, Identifiable {
         switch self {
         case .oneMinute: "1 minute"
         case .twoMinutes: "2 minutes"
+        case .threeMinutes: "3 minutes"
         case .fiveMinutes: "5 minutes"
         case .tenMinutes: "10 minutes"
         case .fifteenMinutes: "15 minutes"

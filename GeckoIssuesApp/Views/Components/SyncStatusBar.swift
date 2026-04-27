@@ -8,6 +8,8 @@ struct SyncStatusBar: View {
     var syncStore: SyncStore
     var authStore: AuthStore
 
+    @State private var tick = 0
+
     var body: some View {
         HStack(spacing: 8) {
             statusIcon
@@ -21,6 +23,13 @@ struct SyncStatusBar: View {
         .background(.bar)
         .overlay(alignment: .top) {
             Divider()
+        }
+        .task(id: syncStore.state) {
+            // Re-render every 15 seconds to keep the relative timestamp fresh
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(15))
+                tick += 1
+            }
         }
     }
 
@@ -61,7 +70,7 @@ struct SyncStatusBar: View {
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         case .completed(let date):
-            Text("Synced \(date, format: .relative(presentation: .named))")
+            Text("Synced \(relativeText(from: date))")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
         case .error(let message):
@@ -71,6 +80,16 @@ struct SyncStatusBar: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
+    }
+
+    private func relativeText(from date: Date) -> String {
+        _ = tick // read tick to create dependency for re-render
+        let now = Date()
+        let seconds = now.timeIntervalSince(date)
+        if seconds < 5 { return "just now" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
     }
 
     private func syncingText(for progress: SyncStore.SyncProgress) -> String {
