@@ -5,6 +5,7 @@ import GRDB
 struct RepositoryListView: View {
     var appStore: AppStore
     var syncStore: SyncStore
+    var authStore: AuthStore
     var database: AppDatabase
 
     @State private var filterText = ""
@@ -31,6 +32,11 @@ struct RepositoryListView: View {
                             .tag(repo.id)
                     }
                 }
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !appStore.accounts.isEmpty {
+                SyncStatusIndicator(syncStore: syncStore, authStore: authStore)
             }
         }
         .safeAreaInset(edge: .top) {

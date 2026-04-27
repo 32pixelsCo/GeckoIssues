@@ -11,7 +11,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            RepositoryListView(appStore: appStore, syncStore: syncStore, database: database)
+            RepositoryListView(appStore: appStore, syncStore: syncStore, authStore: authStore, database: database)
                 .navigationTitle("Repositories")
         } detail: {
             VStack(spacing: 0) {
