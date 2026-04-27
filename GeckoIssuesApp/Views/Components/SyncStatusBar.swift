@@ -53,6 +53,10 @@ struct SyncStatusBar: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 11))
                 .foregroundStyle(.red)
+        case .offline:
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -79,6 +83,10 @@ struct SyncStatusBar: View {
                 .foregroundStyle(.red)
                 .lineLimit(1)
                 .truncationMode(.tail)
+        case .offline:
+            Text("Offline")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -122,6 +130,8 @@ struct SyncStatusBar: View {
             }
             .controlSize(.small)
             .accessibilityLabel("Sync now")
+        case .offline:
+            EmptyView()
         }
     }
 }

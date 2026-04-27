@@ -42,6 +42,7 @@ struct ContentView: View {
             if !authStore.isAuthenticated {
                 navigationStore.activeSheet = .onboarding
             }
+            syncStore.startNetworkMonitoring()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             startBackgroundRefreshIfAuthenticated()
