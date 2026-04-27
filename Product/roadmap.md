@@ -29,8 +29,8 @@ End state: open the app, complete a guided setup, pick your org and repos, and t
 - [x] Settings — add/remove organizations; adding an org reuses the onboarding wizard from step 2
 - [x] Selective sync — only sync repos you've added
 - [x] Incremental sync — use `updatedAt` cursors instead of full re-fetch
-- [ ] Background refresh — poll on a configurable interval while app is active
-- [ ] Sync status indicator — show sync state (idle / syncing / error / offline) in the UI
+- [x] Background refresh — poll on a configurable interval while app is active
+- [x] Sync status indicator — show sync state (idle / syncing / error / offline) in the UI
 - [ ] Online/offline detection — detect network loss, degrade gracefully to reads
 
 ## M3: Issue Management
