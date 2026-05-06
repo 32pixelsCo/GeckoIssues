@@ -60,7 +60,7 @@ struct ContentView: View {
     @ViewBuilder
     private var issueListColumn: some View {
         if appStore.selectedRepository != nil {
-            IssueListView(appStore: appStore, syncStore: syncStore, database: database)
+            IssueListView(appStore: appStore, navigationStore: navigationStore, syncStore: syncStore, database: database)
         } else {
             ContentUnavailableView(
                 "Select a Repository",
@@ -72,7 +72,16 @@ struct ContentView: View {
 
     @ViewBuilder
     private var issueDetailColumn: some View {
-        if let issue = appStore.selectedIssue {
+        if navigationStore.isShowingNewIssueForm, let repo = appStore.selectedRepository {
+            NewIssueView(
+                repository: repo,
+                appStore: appStore,
+                navigationStore: navigationStore,
+                syncStore: syncStore,
+                authStore: authStore,
+                database: database
+            )
+        } else if let issue = appStore.selectedIssue {
             IssueDetailView(issue: issue, database: database)
         } else {
             ContentUnavailableView(

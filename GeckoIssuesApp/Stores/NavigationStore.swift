@@ -4,6 +4,7 @@ import Foundation
 @MainActor @Observable
 final class NavigationStore {
     var activeSheet: SheetRoute?
+    var isShowingNewIssueForm = false
 }
 
 // MARK: - Sheet Routes
