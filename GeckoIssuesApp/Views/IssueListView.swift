@@ -4,6 +4,7 @@ import GRDB
 /// Displays issues for the selected repository in a compact list with sorting controls.
 struct IssueListView: View {
     var appStore: AppStore
+    var navigationStore: NavigationStore
     var syncStore: SyncStore
     var database: AppDatabase
 
@@ -27,6 +28,14 @@ struct IssueListView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    navigationStore.isShowingNewIssueForm = true
+                } label: {
+                    SwiftUI.Label("New Issue", systemImage: "plus")
+                }
+                .accessibilityLabel("Create new issue")
+            }
             ToolbarItem(placement: .automatic) {
                 sortMenu
             }

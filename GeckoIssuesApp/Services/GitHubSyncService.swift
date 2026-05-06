@@ -11,6 +11,7 @@ protocol SyncServiceProtocol: Sendable {
     func fetchOrganizationRepositories(login: String, token: String) async throws -> [GitHubSyncService.RepositoryData]
     func fetchIssues(owner: String, name: String, since: Date?, token: String) async throws -> [GitHubSyncService.IssueData]
     func fetchIssuesBatched(repos: [(owner: String, name: String, since: Date)], token: String) async throws -> [GitHubSyncService.BatchedRepoResult]
+    func createIssue(owner: String, name: String, title: String, body: String?, labelIds: [String], assigneeIds: [String], milestoneId: String?, token: String) async throws -> GitHubSyncService.IssueData
 }
 
 extension SyncServiceProtocol {
@@ -22,6 +23,10 @@ extension SyncServiceProtocol {
             results.append(GitHubSyncService.BatchedRepoResult(issues: issues, hasNextPage: false, endCursor: nil))
         }
         return results
+    }
+
+    func createIssue(owner: String, name: String, title: String, body: String?, labelIds: [String], assigneeIds: [String], milestoneId: String?, token: String) async throws -> GitHubSyncService.IssueData {
+        fatalError("createIssue not implemented")
     }
 }
 
@@ -195,6 +200,49 @@ struct GitHubSyncService: SyncServiceProtocol, Sendable {
                 OrganizationData(databaseId: org.databaseId, login: org.login, avatarUrl: org.avatarUrl)
             }
         )
+    }
+
+    // MARK: - Create Issue
+
+    func createIssue(
+        owner: String,
+        name: String,
+        title: String,
+        body: String?,
+        labelIds: [String],
+        assigneeIds: [String],
+        milestoneId: String?,
+        token: String
+    ) async throws -> IssueData {
+        // Fetch the repository node ID needed for the mutation
+        let repoNodeId = try await fetchRepositoryNodeId(owner: owner, name: name, token: token)
+
+        let input = CreateIssueInput(
+            repositoryId: repoNodeId,
+            title: title,
+            body: body,
+            labelIds: labelIds.isEmpty ? nil : labelIds,
+            assigneeIds: assigneeIds.isEmpty ? nil : assigneeIds,
+            milestoneId: milestoneId
+        )
+
+        let response: CreateIssueResponse = try await client.execute(
+            query: Queries.createIssue,
+            variables: ["input": input],
+            token: token
+        )
+
+        return mapIssueNode(response.createIssue.issue)
+    }
+
+    /// Fetch the GraphQL node ID for a repository by owner/name.
+    private func fetchRepositoryNodeId(owner: String, name: String, token: String) async throws -> String {
+        let response: RepositoryNodeIdResponse = try await client.execute(
+            query: Queries.repositoryNodeId,
+            variables: ["owner": owner, "name": name],
+            token: token
+        )
+        return response.repository.id
     }
 
     private func mapIssueNode(_ node: IssueNode) -> IssueData {
@@ -503,6 +551,31 @@ private struct BatchedReposResponse: Decodable, Sendable {
     }
 }
 
+private struct CreateIssueInput: Encodable, Sendable {
+    let repositoryId: String
+    let title: String
+    let body: String?
+    let labelIds: [String]?
+    let assigneeIds: [String]?
+    let milestoneId: String?
+}
+
+private struct CreateIssueResponse: Decodable, Sendable {
+    let createIssue: CreateIssuePayload
+}
+
+private struct CreateIssuePayload: Decodable, Sendable {
+    let issue: IssueNode
+}
+
+private struct RepositoryNodeIdResponse: Decodable, Sendable {
+    let repository: RepositoryNodeIdNode
+}
+
+private struct RepositoryNodeIdNode: Decodable, Sendable {
+    let id: String
+}
+
 private struct DynamicKey: CodingKey {
     var stringValue: String
     var intValue: Int? { nil }
@@ -702,6 +775,56 @@ private enum Queries {
             }
           }
           pageInfo { hasNextPage endCursor }
+        }
+      }
+    }
+    """
+
+    static let repositoryNodeId = """
+    query($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        id
+      }
+    }
+    """
+
+    static let createIssue = """
+    mutation($input: CreateIssueInput!) {
+      createIssue(input: $input) {
+        issue {
+          databaseId
+          number
+          title
+          body
+          state
+          url
+          createdAt
+          updatedAt
+          closedAt
+          author { login }
+          milestone {
+            id
+            number
+            title
+            description
+            state
+            dueOn
+          }
+          labels(first: 100) {
+            nodes { id name color description }
+          }
+          assignees(first: 100) {
+            nodes { databaseId login avatarUrl }
+          }
+          comments(first: 100) {
+            nodes {
+              id
+              author { login }
+              body
+              createdAt
+              updatedAt
+            }
+          }
         }
       }
     }
